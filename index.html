@@ -161,6 +161,20 @@
   <div id="toasts" aria-live="polite"></div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  /* Firebase project settings (public identifiers; Firestore rules protect the data). */
+  window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDOGT6lZXqgD7J7YFLbuE5OSSi4GBwGlq0",
+    authDomain: "quizlark.firebaseapp.com",
+    projectId: "quizlark",
+    storageBucket: "quizlark.firebasestorage.app",
+    messagingSenderId: "16253304647",
+    appId: "1:16253304647:web:24f2b13d6bfecb0d49d662"
+  };
+</script>
 <script>
 (function(){
 "use strict";
@@ -919,6 +933,7 @@ function brainPop(b){
 }
 
 // ================= leaderboard =================
+const FIREBASE_CONFIG = window.FIREBASE_CONFIG;
 const LB = { db:null, uid:null, owner:false, rows:[], status:"loading", loaded:false, slow:false, lastSent:"", writing:false, again:false, readOnly:false, tab:"level" };
 const LB_TABS = [
   { id:"level",   icon:"⭐", name:"Level",        val:r => r.xp || 0,        show:r => "Lv " + (r.lvl || 1) + " · " + (r.xp || 0) + " XP" },
@@ -941,13 +956,13 @@ async function syncLB(){
   if (json === LB.lastSent) return;
   LB.writing = true;
   try { await LB.db.doc("lb/" + LB.uid).set(body); LB.lastSent = json; }
-  catch(e){ if (e && e.code === "invalid_argument") LB.readOnly = true; else if (e && e.code === "unavailable"){ setTimeout(syncLB, 1500 + Math.random()*1500); } }
+  catch(e){ if (e && (e.code === "invalid_argument" || e.code === "permission-denied")) LB.readOnly = true; else if (e && e.code === "unavailable"){ setTimeout(syncLB, 1500 + Math.random()*1500); } }
   LB.writing = false;
   if (LB.again){ LB.again = false; syncLB(); }
 }
 function lbSorted(tab){ const t = LB_TABS.find(x => x.id === tab); return LB.rows.slice().filter(r => t.val(r) > 0).sort((a,b) => t.val(b) - t.val(a)); }
 function lbMyRankText(){
-  if (LB.status !== "ready" || !LB.loaded) return LB.status === "off" ? "Sign in to compete" : "Loading…";
+  if (LB.status !== "ready" || !LB.loaded) return LB.status === "off" || LB.status === "error" ? "Offline" : "Loading…";
   const list = lbSorted("level"), i = list.findIndex(r => r.id === LB.uid);
   return i >= 0 ? "You're #" + (i + 1) + " of " + list.length : list.length + " players";
 }
@@ -958,28 +973,27 @@ function lbCheckChamp(){
 function refreshLB(){ lbCheckChamp(); if (currentPanel === renderLeaderboard && !$("panel").classList.contains("hidden")) renderLeaderboard(); else if (!$("home").classList.contains("hidden")) { const h = document.querySelector('[data-act="lbPanel"] small'); if (h) h.textContent = lbMyRankText(); } }
 (async () => {
   try {
-    if (!window.claude || typeof window.claude.use !== "function"){ LB.status = "off"; return; }
-    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
-    if (!db || !user){ LB.status = "off"; refreshLB(); return; }
-    const uid = await user.id();
-    if (!uid){ LB.status = "off"; refreshLB(); return; }
-    LB.db = db; LB.uid = uid; LB.owner = !!(user.isOwner && user.isOwner()); LB.status = "ready";
-    try { const cw = user.can ? await user.can("data.write") : null; if (cw === false) LB.readOnly = true; } catch(e){}
+    if (!window.firebase){ LB.status = "off"; return; }
+    const app = firebase.initializeApp(FIREBASE_CONFIG, "splashjet");
+    const fdb = firebase.firestore(app), auth = firebase.auth(app);
+    LB.status = "ready";
     const timer = setTimeout(() => { if (!LB.loaded){ LB.slow = true; refreshLB(); } }, 10000);
-    db.collection("lb").limit(500).onSnapshot(snap => {
-      if (!snap.metadata.fromCache){ clearTimeout(timer); LB.slow = false; }
-      LB.loaded = true;
+    fdb.collection("splashLb").limit(500).onSnapshot(snap => {
+      clearTimeout(timer); LB.slow = false; LB.loaded = true;
       LB.rows = snap.docs.filter(d => d.exists).map(d => Object.assign({}, d.data(), { id: d.id }));
       refreshLB();
     }, err => { clearTimeout(timer); LB.status = "error"; refreshLB(); });
-    syncLB();
-  } catch(e){ LB.status = "off"; refreshLB(); }
+    const cred = await auth.signInAnonymously();
+    LB.uid = cred.user.uid;
+    LB.db = { doc: p => fdb.doc(p.replace(/^lb\//, "splashLb/")) };
+    refreshLB(); syncLB();
+  } catch(e){ console.warn("Leaderboard:", e); if (!LB.loaded) LB.status = "off"; LB.readOnly = !LB.uid; refreshLB(); }
 })();
 function renderLeaderboard(){
   const tab = LB.tab;
   let h = `<div class="row" style="margin-bottom:10px">${LB_TABS.map(t => `<button class="small ${t.id === tab ? "gold" : ""}" data-act="lbTab" data-arg="${t.id}">${t.icon} ${t.name}</button>`).join("")}</div>`;
   if (LB.status === "off" || LB.status === "error"){
-    h += `<p class="sub">The leaderboard needs you to be signed in to Claude, with this game shared with you. Here are your own scores:</p>`;
+    h += `<p class="sub">The leaderboard can't connect right now (check your internet). Here are your own scores:</p>`;
     const me = lbPayload(); h += `<div class="stats">${LB_TABS.map(t => `<div>${t.icon} ${t.name}<b>${t.show(me)}</b></div>`).join("")}</div>`;
   } else if (!LB.loaded){
     h += `<p class="sub">${LB.slow ? "Can't reach the leaderboard right now — it'll show up when the connection is back." : "Loading the leaderboard…"}</p>`;
@@ -991,7 +1005,7 @@ function renderLeaderboard(){
       h += `<div class="tier" style="${me ? "border-color:#5cc8ff;background:linear-gradient(90deg,#1d4f7a,#1a2150)" : i < 3 ? "border-color:#ffd16688" : ""}"><span class="lv" style="width:40px;font-size:${i < 3 ? 22 : 14}px">${medal}</span><span style="font-size:24px">${esc(r.av || "👩‍🚀")}</span><span class="rw"><b>${esc(r.name || "Astro")}</b>${me ? " <small style='color:#5cc8ff'>(you)</small>" : ""}<br><small style="color:var(--gold)">${esc(r.title || "")}</small></span><b style="font-family:ui-monospace,monospace;font-size:14px">${esc(t.show(r))}</b>${LB.owner && !me ? `<button class="small" data-act="lbRemove" data-arg="${esc(r.id)}" title="Remove this player from the board">✕</button>` : ""}</div>`;
     });
     const myIdx = lbSorted(tab).findIndex(r => r.id === LB.uid);
-    h += `<p class="sub" style="margin-top:10px">${myIdx >= 0 ? `You're <b>#${myIdx + 1}</b> on this board. ` : "Play to get on this board! "}${LB.readOnly ? "Your scores can't be posted with your current access — ask the owner to make you a Contributor." : "Your scores update after every game."}<br>Everyone this game is shared with appears here.${LB.owner ? " As the owner, you can remove a player with ✕." : ""}</p>`;
+    h += `<p class="sub" style="margin-top:10px">${myIdx >= 0 ? `You're <b>#${myIdx + 1}</b> on this board. ` : "Play to get on this board! "}${LB.readOnly ? "Your scores couldn't be posted right now." : "Your scores update after every game."}<br>Everyone who plays this game appears here. ${S.name === "Astro" ? "<b>Tip:</b> set your own name in 👩‍🚀 Profile!" : ""}${LB.owner ? " As the owner, you can remove a player with ✕." : ""}</p>`;
   }
   panel("🏆 Leaderboard", h, renderLeaderboard);
 }
