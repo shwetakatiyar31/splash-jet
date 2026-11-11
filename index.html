@@ -125,6 +125,12 @@
   .qtext { font-size:24px; font-weight:800; margin:6px 0 4px; line-height:1.3; }
   .worldhead { grid-column:1/-1; text-align:left; font-weight:800; color:var(--gold); margin-top:6px; }
   #wheel { display:block; margin:6px auto; max-width:100%; }
+  .chatlog { text-align:left; background:#080d27; border:1px solid var(--line); border-radius:12px; padding:10px; min-height:150px; max-height:260px; overflow:auto; user-select:text; }
+  .chatmsg { padding:6px 9px; margin:5px 0; border-radius:10px; background:#1a2150; overflow-wrap:anywhere; }
+  .chatmsg b { color:var(--water); margin-right:6px; }
+  .chatinput { display:flex; gap:8px; margin-top:9px; }
+  .chatinput input { min-width:0; flex:1; }
+  .corner button.music-on { border-color:var(--gold); box-shadow:0 0 12px #ffd16655; }
 </style>
 </head>
 <body>
@@ -138,6 +144,7 @@
   </div>
   <div class="corner">
     <button id="muteBtn" aria-label="Toggle sound">🔊</button>
+    <button id="musicBtn" aria-label="Toggle background music" title="Background music">🎵</button>
     <button id="quitBtn" aria-label="Quit to menu" style="display:none">✕</button>
   </div>
 
@@ -366,7 +373,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], stats:{} }, store(SAVE_KEY) || {});
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0 }, S.stats);
 const save = () => store(SAVE_KEY, S);
 
@@ -470,7 +477,31 @@ const sfx = {
   coin: () => tone(1500, 2400, 0.08, "square", 0.04),
   tick: () => tone(900, 700, 0.03, "square", 0.03),
   legend: () => [523, 784, 1047, 1568, 2093].forEach((f,i) => tone(f, f*1.02, 0.25, "sine", 0.12, i*0.08)),
+  stage: (idx) => { const root = 330 + ((idx * 47) % 220); [1,1.25,1.5].forEach((v,i) => tone(root*v, root*v*1.01, 0.12, "triangle", 0.055, i*0.075)); },
+  challenge: () => [440,554,659,880].forEach((f,i) => tone(f,f*1.015,0.16,"square",0.045,i*0.09)),
 };
+let musicTimer = null, musicStep = 0, musicTheme = 0;
+function startMusic(theme){
+  if (theme !== undefined) musicTheme = theme;
+  if (!S.musicOn || S.muted) { stopMusic(); return; }
+  try {
+    if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+  } catch(e) { return; }
+  if (musicTimer) return;
+  const patterns = [[0,4,7,4,2,5,9,5],[0,3,7,10,7,3,5,2],[0,5,9,7,4,7,11,9],[0,2,5,9,7,5,2,4]];
+  musicStep = 0;
+  musicTimer = setInterval(() => {
+    if (!S.musicOn || S.muted || !AC) { stopMusic(); return; }
+    const pat = patterns[Math.abs(musicTheme) % patterns.length];
+    const n = pat[musicStep % pat.length], base = 174.61 * Math.pow(2, (n + (musicTheme%3)*2) / 12);
+    tone(base, base*1.002, 0.22, "sine", 0.022);
+    if (musicStep % 2 === 0) tone(base*2, base*2.002, 0.13, "triangle", 0.012, 0.03);
+    musicStep++;
+  }, 260);
+}
+function stopMusic(){ if (musicTimer){ clearInterval(musicTimer); musicTimer = null; } }
+function updateMusicButton(){ const b = $("musicBtn"); if (b){ b.textContent = S.musicOn ? "🎵" : "🎼"; b.classList.toggle("music-on", !!S.musicOn); b.title = S.musicOn ? "Background music on" : "Background music off"; } }
 
 // ================= world =================
 let plats = [], goos = [], items = [], balls = [], boss = null, worldW = 2000, hue = 210, bgStars = [];
@@ -1255,6 +1286,7 @@ function genDash(seed, n, d){
   return { objs, gaps, cps, endX: x + 4*DU };
 }
 function startDash(id, practice){
+  startMusic(1); sfx.challenge();
   const L = id === "daily" ? { id:"daily", name:"Daily Dash #" + dayNumber(), face:"📅", diff:"Daily", d:1, hue: hashStr(today()) % 360, reward:0 } : DASH_LEVELS.find(l => l.id === id);
   const lv = id === "daily" ? genDash(hashStr("dash-" + today()), 28, 1) : genDash(L.seed, L.n, L.d);
   D = Object.assign(lv, { level:L, practice, attempt:0, x:0, y:0, vy:0, rot:0, ground:true, tank:0, airT:0, held:true, cp:null, gemsRun:0, coinsRun:[], dead:0, beatT:0, beat:0, startX: 4*DU, prog:0, jetting:false });
@@ -1797,6 +1829,7 @@ function renderHome(){
       <button class="tile" data-act="passPanel">${bdg(b.pass)}<span class="ic">⭐</span><b>Star Pass</b><small>Lv ${L} rewards</small></button>
       <button class="tile" data-act="seasonPanel" style="border-color:#ffd166">${bdg(b.season)}<span class="ic">🎟️</span><b>Season Pass</b><small>Tier ${seasonTier()}/30 · ${seasonEnds()} left</small></button>
       <button class="tile" data-act="codesPanel"><span class="ic">🔑</span><b>Codes</b><small>Secret rewards</small></button>
+      <button class="tile" data-act="chatPanel"><span class="ic">💬</span><b>Chat</b><small>Local chat</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
       <button class="tile" data-act="shopPanel"><span class="ic">🛍️</span><b>Shop</b><small>Suits · hats · water</small></button>
       <button class="tile" data-act="lbPanel" style="border-color:#ffd166"><span class="ic">🏆</span><b>Leaderboard</b><small>${lbMyRankText()}</small></button>
@@ -1807,6 +1840,7 @@ function renderHome(){
     <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br>Spray <b>down</b> to fly up · spray <b>left</b> to go right · land on rock to refill</div>`;
   bind($("homeCard"));
   $("muteBtn").textContent = S.muted ? "🔇" : "🔊";
+  updateMusicButton();
 }
 function panel(title, html, renderFn){ currentPanel = renderFn; $("pTitle").innerHTML = title; $("pBody").innerHTML = html; $("pNote").textContent = ""; bind($("pBody")); show("panel"); }
 function note(t){ $("pNote").textContent = t; }
@@ -1940,6 +1974,13 @@ function renderSeason(){
   }
   panel("🎟️ Season Pass", h, renderSeason);
 }
+let chatMessages = [{ name:"Splash Jet", text:"Welcome to the chat! Messages stay during this game session." }];
+function renderChat(){
+  const rows = chatMessages.map(m => `<div class="chatmsg"><b>${esc(m.name)}:</b>${esc(m.text)}</div>`).join("");
+  panel("💬 Splash Jet Chat", `<p class="sub">A little in-game chat area. Messages are local to this game session; online multiplayer chat needs a shared server.</p><div class="chatlog" id="chatLog">${rows}</div><div class="chatinput"><input id="chatIn" maxlength="120" autocomplete="off" placeholder="Write a message…"><button class="primary" data-act="chatSend">Send</button></div>`, renderChat);
+  const log = $("chatLog"); if (log) log.scrollTop = log.scrollHeight;
+  const input = $("chatIn"); if (input) input.addEventListener("keydown", e => { if (e.key === "Enter") ACT.chatSend(); });
+}
 function renderCodes(){
   panel("🔑 Secret Codes", `<p class="sub">Got a secret code? Type it here for free rewards!</p>
     <div class="row"><input type="text" id="codeIn" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Secret code" aria-label="Secret code" style="text-align:center;letter-spacing:3px;font-weight:800"><button class="primary" data-act="redeem">Redeem</button></div>
@@ -2005,10 +2046,19 @@ function rain(n, best){
 const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
+  chatPanel: renderChat,
+  chatSend: () => { const el = $("chatIn"), value = (el?.value || "").trim(); if (!value) return; chatMessages.push({ name: S.name || "Player", text: value.slice(0,120) }); if (chatMessages.length > 40) chatMessages.shift(); renderChat(); },
   seasonPanel: renderSeason, codesPanel: renderCodes,
   seasonClaim: t => { t = +t; const st = seasonState(); if (t > seasonTier() || st.claimed.includes(t)) return; st.claimed.push(t); save(); grantReward(seasonReward(t), `🎟️ Season tier ${t}!`); },
   redeem: () => {
     const v = ($("codeIn").value || "").replace(/\s+/g, "").toUpperCase(), h = hashStr("sj-" + v);
+    if (v === "SAMARTH"){
+      if (S.codes.includes("samarth")){ note("You already used the SAMARTH code! ✅"); return; }
+      S.codes.push("samarth"); S.gems += 777; S.shards += 7;
+      if (!S.owned.includes("hat-mask")) S.owned.push("hat-mask");
+      save(); sfx.legend(); queueReveal({ title:"🌟 SAMARTH SECRET UNLOCKED!", cards:[{ e:"👑", name:"Samarth's Secret Prize", c:"#ffd166", sub:"777 gems + 7 star shards + Mystery Mask" }] });
+      toast("Secret code SAMARTH accepted!"); return;
+    }
     if (h !== 944884742){ note("Hmm, that code doesn't work. Check the spelling!"); sfx.fail(); return; }
     if (S.codes.includes("secret1")){ note("You already used this code! ✅"); return; }
     S.codes.push("secret1"); save();
@@ -2123,8 +2173,19 @@ function placeTreasure(i){
   items.push({ type:"treasure", x: p.x + p.w/2, y: Math.max(80, p.y - 190), bob: 0 });
 }
 let runTreasure = false;
+function addEndlessLevel(){
+  const n = LEVELS.length - 23;
+  const bossStage = n > 0 && n % 5 === 0;
+  const themes = ["🌠","🪐","🌈","🛰️","💫","🌙","☄️","🧿"];
+  const names = ["Starlight Run","Orbit Outpost","Nebula Drift","Comet Crossing","Moonlit Mission","Cosmic Current","Meteor Meadow","Galaxy Garden"];
+  const difficulty = Math.min(0.92, 0.48 + n * 0.018);
+  LEVELS.push(bossStage
+    ? { name:`Endless Boss ${Math.ceil(n/5)}`, icon:"👾", hue:(n*37)%360, boss:true, endless:true }
+    : { name:`${names[(n-1)%names.length]} ${n}`, icon:themes[(n-1)%themes.length], hue:(n*43+190)%360, len:3000+Math.min(1800,n*45), d:difficulty, move:Math.min(0.55,0.18+n*0.012), fan:Math.min(0.8,0.2+n*0.015), bounce:n%3===0?0.25:0.12, mega:n%2===0, endless:true });
+}
 function startLevel(i){
   party = null; balloons = []; BT = null;
+  startMusic(i); sfx.stage(i);
   mode = LEVELS[i].boss ? "boss" : "level"; levelIdx = i; mod = null; opts = LEVELS[i];
   if (opts.boss){ genBoss(false, opts.queen, opts.magma); if (opts.magma){ hue = 12; fans = [{ x:860, w:50, geyser:true, ph:0, period:2.6 }, { x:360, w:50, geyser:true, ph:1.3, period:2.6 }]; } if (opts.queen){ hue = 200; plats.forEach((p, k) => { if (k === 3 || k === 5) p.type = "ice"; }); } } else gen(hashStr("level-" + i), opts);
   if (!opts.boss && !S.treasures.includes(i)) placeTreasure(i);
@@ -2133,18 +2194,19 @@ function startLevel(i){
 }
 function startDaily(){
   party = null; balloons = []; BT = null;
+  startMusic(dayNumber() + 2);
   mode = "daily"; mod = todayMod();
   opts = Object.assign({ hue: hashStr(today()) % 360, len: 2600, d: 0.25 }, mod);
   gen(hashStr("splash-" + today()), opts); begin(150);
   say(mod.icon + " " + mod.name + "!", "#ffd166");
 }
 function startTitan(){
-  ensureQuests(); if (S.titan.dmg >= TITAN_MAX) return;
+  startMusic(3); ensureQuests(); if (S.titan.dmg >= TITAN_MAX) return;
   party = null; balloons = []; BT = null; mode = "titan"; mod = null; opts = { hue:280 }; genBoss(true); begin(75);
   say("Every splash counts! 💜", "#c49bff");
 }
 function startParty(id){
-  const pd = PARTY.find(p => p.id === id); brainQ = null; BT = null; ring = null; hoop = null; gball = null; meteors = []; pHearts = 3; pInv = 0;
+  startMusic(2); const pd = PARTY.find(p => p.id === id); brainQ = null; BT = null; ring = null; hoop = null; gball = null; meteors = []; pHearts = 3; pInv = 0;
   mode = "party"; party = id; mod = null; opts = { hue: pd.hue }; balloons = []; spawnT = 0.5;
   genArena(id); begin(pd.time);
   say(pd.icon + " " + pd.name + "!", "#ffd166");
@@ -2231,6 +2293,7 @@ function finish(clean){
     $("doneScore").textContent = clean ? "+" + (runGems + starBonus) + " 💎" : "+" + runGems + " 💎 kept";
     $("doneBreak").innerHTML = mode === "boss" ? (clean ? `Boss bonus included · Star bonus 💎 ${starBonus}` : `The Goo King had ${Math.ceil(100*boss.hp/boss.max)}% left. You got this!`) : `Goo ${cleaned}/${total} · Gems found 💎 ${runGems}` + (clean ? ` · Star bonus 💎 ${starBonus}` : " · Your gems are kept!");
     if (clean){
+      if ((mode === "level" || mode === "boss") && levelIdx === LEVELS.length - 1) addEndlessLevel();
       xp += mode === "boss" ? 100 : 20 + st*10; track("levels"); if (st === 3) track("stars3");
       if (mode === "boss"){ if (opts.queen) S.stats.queens++; else if (opts.magma) S.stats.magma++; else S.stats.bosses++; }
       const prev = S.stars[levelIdx] || 0; if (st > prev) S.stars[levelIdx] = st;
@@ -2256,7 +2319,9 @@ function finish(clean){
 
 // ================= wiring =================
 $("quitBtn").onclick = quit;
-$("muteBtn").onclick = () => { S.muted = !S.muted; save(); $("muteBtn").textContent = S.muted ? "🔇" : "🔊"; };
+$("muteBtn").onclick = () => { S.muted = !S.muted; save(); $("muteBtn").textContent = S.muted ? "🔇" : "🔊"; if (S.muted) stopMusic(); else startMusic(); };
+$("musicBtn").onclick = () => { S.musicOn = !S.musicOn; save(); updateMusicButton(); if (S.musicOn) startMusic(); else stopMusic(); };
+updateMusicButton();
 
 gen(hashStr("level-0"), LEVELS[0]); resetPlayer();
 ensureQuests(); checkAwards(); save(); goHome();
