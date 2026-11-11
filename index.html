@@ -130,6 +130,15 @@
   .chatmsg b { color:var(--water); margin-right:6px; }
   .chatinput { display:flex; gap:8px; margin-top:9px; }
   .chatinput input { min-width:0; flex:1; }
+  #edTop, #edBot { position:absolute; left:50%; transform:translateX(-50%); display:none; gap:6px; flex-wrap:wrap; justify-content:center; align-items:center; background:#070a18e6; border:1px solid #2e3878; border-radius:14px; padding:6px 8px; z-index:6; width:min(960px,98vw); }
+  #edTop { top:8px; } #edBot { bottom:8px; }
+  body.editing #edTop, body.editing #edBot { display:flex; }
+  #edTop input[type=text] { width:150px; padding:6px 10px; font-size:14px; }
+  #edTop select, #edTop input[type=range] { accent-color:var(--water); }
+  #edTop select { font:inherit; font-size:13px; padding:5px; border-radius:8px; background:#0b1030; color:var(--ink); border:1px solid var(--line); }
+  .tool { padding:6px 9px; font-size:13px; border-radius:10px; background:var(--tile); border:2px solid var(--line); }
+  .tool.on { border-color:var(--gold); background:#3a2e10; }
+  #edInfo { font:600 12px ui-monospace,monospace; color:var(--dim); }
   .corner button.music-on { border-color:var(--gold); box-shadow:0 0 12px #ffd16655; }
 </style>
 </head>
@@ -165,6 +174,18 @@
   <div class="overlay hidden" id="quiz"><div class="card" id="quizCard"></div></div>
   <div class="overlay hidden" id="reveal"><div id="confetti"></div><div class="card" id="revealCard"></div></div>
   <div id="touch"><div class="grp"><button data-k="left" aria-label="Walk left">◀</button><button data-k="right" aria-label="Walk right">▶</button></div><div class="grp"><button data-k="jump" aria-label="Jump">⤒</button></div></div>
+  <div id="edTop">
+    <input type="text" id="edName" maxlength="24" placeholder="Level name" aria-label="Level name">
+    <label style="font-size:12px;color:var(--dim)">🎨 <input type="range" id="edHue" min="0" max="359" aria-label="Background colour"></label>
+    <select id="edTime" aria-label="Time limit"><option value="60">⏱ 1:00</option><option value="90">⏱ 1:30</option><option value="120">⏱ 2:00</option><option value="150">⏱ 2:30</option><option value="180">⏱ 3:00</option><option value="240">⏱ 4:00</option></select>
+    <select id="edGrav" aria-label="Gravity"><option value="1">🌍 Normal gravity</option><option value="0.7">🎈 Floaty</option><option value="1.3">🪨 Heavy</option></select>
+    <button class="tool" data-ed="undo" title="Undo">↩️ Undo</button>
+    <button class="tool" data-ed="test" style="border-color:#8dff5a">▶ Test</button>
+    <button class="tool" data-ed="save" style="border-color:#5cc8ff">💾 Save</button>
+    <button class="tool" data-ed="exit">✕ Exit</button>
+    <span id="edInfo"></span>
+  </div>
+  <div id="edBot"></div>
   <div id="toasts" aria-live="polite"></div>
 </div>
 
@@ -373,7 +394,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], stats:{} }, store(SAVE_KEY) || {});
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0 }, S.stats);
 const save = () => store(SAVE_KEY, S);
 
@@ -663,6 +684,9 @@ cv.addEventListener("pointerdown", e => { e.preventDefault(); const p = toCanvas
 cv.addEventListener("pointermove", e => { const p = toCanvas(e); pointer.x = p.x; pointer.y = p.y; if (e.pointerType === "mouse") pointer.active = true; });
 const up = () => { pointer.down = false; };
 cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+cv.addEventListener("pointerdown", e => { if (mode === "editor"){ edDown(toCanvas(e)); } });
+cv.addEventListener("pointermove", e => { if (mode === "editor"){ edMove(toCanvas(e)); } });
+cv.addEventListener("pointerup", e => { if (mode === "editor"){ edUp(toCanvas(e)); } });
 addEventListener("keydown", e => {
   if (e.target && e.target.tagName === "INPUT") return;
   if (e.code === "ArrowLeft" || e.code === "KeyA"){ keys.left = true; if (running) e.preventDefault(); }
@@ -708,7 +732,7 @@ function waterColor(i, rb){
   if (S.water === "lava") return `hsl(${10 + (i*7)%30},100%,${55 + (i%3)*8}%)`;
   const it = SHOP.water.find(w => w.id === S.water); return it ? it.c : "#9be0ff";
 }
-function addGems(v){ if (pw.star) v *= 2; if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; track("gems", v); return v; }
+function addGems(v){ if (pw.star) v *= 2; if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; if (mode !== "custom") track("gems", v); return v; }
 
 function blast(){
   if (P.cd > 0 || (P.tank < 1 && !pw.infinite)) return;
@@ -731,7 +755,7 @@ function gooHit(g){
     return;
   }
   if (g.hp <= 0){
-    burst(gx, gy, g.golden ? "#ffd166" : "#8dff5a", 22); sfx.pop(); runGoo++; track("goo", 1); buddyCheer();
+    burst(gx, gy, g.golden ? "#ffd166" : "#8dff5a", 22); sfx.pop(); runGoo++; if (mode !== "custom") track("goo", 1); buddyCheer();
     if (party === "goorush") partyScore++;
     if (g.golden){ track("golden", 1); const gv = addGems(10); floatText(gx, gy - 44, `🌟 GOLDEN! +${gv}`, "#ffd166"); burst(gx, gy, "#fff3b0", 30, 360); sfx.legend(); if (Math.random() < 0.25) addEgg(); }
     combo = comboT > 0 ? combo + 1 : 1; comboT = 3;
@@ -818,6 +842,7 @@ function update(dt){
     if (Math.hypot(P.x - it.x, P.y - iy) < R + 14){
       it.taken = true;
       if (it.type === "gem"){ const v = addGems((opts.gemValue || 1) * (it.rare ? 5 : 1)); sfx.gem(); burst(it.x, iy, it.rare ? "#ffd166" : "#7ff3ff", 6, 160); floatText(it.x, iy - 10, "+" + v); if (party === "gemrain" || party === "meteor") partyScore += it.rare ? 5 : 1; }
+      else if (it.type === "treasure" && mode === "custom"){ addGems(25); sfx.legend(); burst(it.x, iy, "#ffd166", 40, 360); say("🗝️ TREASURE!", "#ffd166"); }
       else if (it.type === "treasure"){ runTreasure = true; if (!S.treasures.includes(levelIdx)) S.treasures.push(levelIdx); addGems(25); sfx.legend(); burst(it.x, iy, "#ffd166", 40, 360); say("🗝️ HIDDEN TREASURE FOUND!", "#ffd166"); checkAwards(); }
       else if (it.type === "heart"){ if (BT){ BT.hearts = Math.min(BT.maxHearts, BT.hearts + 1); } sfx.bubble(); burst(it.x, iy, "#ff6b8a", 14, 200); floatText(it.x, iy - 10, "+1 ❤️", "#ff6b8a"); }
       else if (it.type === "quiz"){ burst(it.x, iy, "#c49bff", 20, 260); openQuiz(); }
@@ -938,7 +963,7 @@ function answerQuiz(q, i){
   btns[q.ans].classList.add("right"); S.stats.quizAns++;
   if (i === q.ans){
     track("quiz", 1); sfx.win();
-    const prize = pick(["gems","tank","power","season"]);
+    const prize = pick(mode === "custom" ? ["tank","power"] : ["gems","tank","power","season"]);
     let t = "";
     if (prize === "gems"){ const v = addGems(8); t = `+${v} 💎`; }
     else if (prize === "tank"){ P.tank = tankMax; t = "Full water tank! 💧"; }
@@ -1233,6 +1258,154 @@ function renderBattle(){
   panel("⚔️ Monster Battle", h + "</div>", renderBattle);
 }
 
+// ================= level editor =================
+const ED = { data:null, editIdx:-1, tool:"rock", cam:0, drag:null, hover:null, history:[], testing:false, playing:null, powerN:0, confirmDel:null };
+const ED_TOOLS = [
+  ["rock","🪨","Rock"],["ice","🧊","Ice"],["bounce","🟠","Bounce"],["move","↕️","Moving"],
+  ["goo","🟢","Goo"],["golden","🌟","Gold goo"],["mega","🟩","Big goo"],["gem","💎","Gem"],["bubble","🫧","Bubble"],
+  ["power","⚡","Power-up"],["quiz","❓","Question"],["treasure","🗝️","Treasure"],["heart","❤️","Heart"],
+  ["fan","🌀","Fan"],["geyser","🌋","Geyser"],["erase","🧽","Eraser"],["pan","✋","Scroll"]
+];
+const ED_W_MIN = 1600, ED_W_MAX = 8000, SNAP = 20;
+function blankLevel(){ return { v:1, name:"My Level " + (S.myLevels.length + 1), hue: Math.floor(Math.random()*360), time:120, grav:1, w:2400, plats:[[40,400,260,"rock"],[420,360,180,"rock"]], goos:[[1,50,0,0]], items:[[ "gem",360,300 ]], fans:[] }; }
+function snap(v){ return Math.round(v / SNAP) * SNAP; }
+function cleanLevel(L){
+  if (!L || typeof L !== "object") return null;
+  const num = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? clamp(Math.round(v), a, b) : d; };
+  const PT = ["rock","ice","bounce","move"], IT = ["gem","bubble","power","quiz","treasure","heart"];
+  const out = { v:1, name: String(L.name || "Custom Level").slice(0, 24), hue: num(L.hue, 0, 359, 200), time: num(L.time, 30, 300, 120), grav: [0.7,1,1.3].includes(Number(L.grav)) ? Number(L.grav) : 1, w: num(L.w, ED_W_MIN, ED_W_MAX, 2400), plats:[], goos:[], items:[], fans:[] };
+  (Array.isArray(L.plats) ? L.plats : []).slice(0, 150).forEach(p => { if (Array.isArray(p)) out.plats.push([num(p[0], 0, ED_W_MAX, 40), num(p[1], 80, 470, 400), num(p[2], 40, 800, 160), PT.includes(p[3]) ? p[3] : "rock"]); });
+  if (!out.plats.length) out.plats.push([40, 400, 260, "rock"]);
+  out.plats[0][3] = out.plats[0][3] === "move" ? "rock" : out.plats[0][3];
+  (Array.isArray(L.goos) ? L.goos : []).slice(0, 150).forEach(g => { if (Array.isArray(g) && out.plats[g[0]] && out.plats[g[0]][3] !== "bounce") out.goos.push([num(g[0], 0, 149, 0), num(g[1], 0, 760, 10), g[2] ? 1 : 0, g[3] ? 1 : 0]); });
+  (Array.isArray(L.items) ? L.items : []).slice(0, 250).forEach(it => { if (Array.isArray(it) && IT.includes(it[0])) out.items.push([it[0], num(it[1], 0, ED_W_MAX, 100), num(it[2], 60, 480, 300)].concat(it[0] === "power" && POWERS[it[3]] ? [it[3]] : [])); });
+  (Array.isArray(L.fans) ? L.fans : []).slice(0, 40).forEach(f => { if (Array.isArray(f)) out.fans.push([num(f[0], 0, ED_W_MAX, 100), f[1] ? 1 : 0]); });
+  return out;
+}
+function levelCode(L){ try { return "SJ1:" + btoa(unescape(encodeURIComponent(JSON.stringify(cleanLevel(L))))); } catch(e){ return ""; } }
+function parseLevelCode(code){ try { code = code.replace(/\s+/g, ""); if (!code.startsWith("SJ1:")) return null; return cleanLevel(JSON.parse(decodeURIComponent(escape(atob(code.slice(4)))))); } catch(e){ return null; } }
+function buildCustom(L){
+  plats = []; goos = []; items = []; balls = []; boss = null; fans = []; BT = null; party = null; balloons = [];
+  hue = L.hue; worldW = L.w;
+  L.plats.forEach(p => plats.push(newPlat(p[0], p[1], p[2], p[3], p[3] === "move" ? { amp:50, sp:1, ph:(p[0] % 7) } : {})));
+  L.goos.forEach(g => { const p = plats[g[0]]; if (!p) return; const mega = !!g[3], gw = Math.min(mega ? 90 : 64, Math.max(30, p.w - 20)); goos.push({ p, off: clamp(g[1], 4, Math.max(4, p.w - gw - 4)), w: gw, hp: mega ? 4 : 3, max: mega ? 4 : 3, mega, golden: !!g[2], wob: Math.random()*6, eek:0 }); });
+  L.items.forEach((it, k) => items.push({ type: it[0], x: it[1], y: it[2], bob: k, p: it[0] === "power" ? (it[3] || Object.keys(POWERS)[k % 5]) : undefined }));
+  L.fans.forEach(f => fans.push(f[1] ? { x: f[0], w:50, geyser:true, ph:(f[0] % 3), period:2.8 } : { x: f[0], w:56 }));
+  makeStars(hashStr(L.name || "x"));
+}
+function edRebuild(){ buildCustom(ED.data); const p0 = plats[0]; if (p0){ P.x = p0.x + 110; P.y = p0.y - R - 1; } edInfo(); }
+function edInfo(){ const d = ED.data; $("edInfo").textContent = `🟢 ${d.goos.length} goo · 🪨 ${d.plats.length} rocks · 📏 ${Math.round(d.w/100)/10}k wide`; }
+function edPush(){ ED.history.push(JSON.stringify(ED.data)); if (ED.history.length > 40) ED.history.shift(); }
+function openEditor(){
+  running = false; ED.testing = false; mode = "editor"; opts = { hue: ED.data.hue, lava:false };
+  stopMusic && stopMusic();
+  SCREENS.forEach(x => $(x).classList.add("hidden"));
+  $("hud").classList.remove("on"); $("quitBtn").style.display = "none";
+  document.body.classList.remove("playing"); document.body.classList.add("editing");
+  $("edName").value = ED.data.name; $("edHue").value = ED.data.hue; $("edTime").value = String(ED.data.time); $("edGrav").value = String(ED.data.grav);
+  $("edBot").innerHTML = ED_TOOLS.map(t => `<button class="tool${ED.tool === t[0] ? " on" : ""}" data-tool="${t[0]}" title="${t[2]}">${t[1]} ${t[2]}</button>`).join("") + `<button class="tool" data-ed="left" title="Scroll left">◀</button><button class="tool" data-ed="right" title="Scroll right">▶</button><button class="tool" data-ed="wider" title="Make level longer">↔️ Longer</button>`;
+  $("edBot").querySelectorAll("[data-tool]").forEach(b => b.onclick = () => { ED.tool = b.dataset.tool; $("edBot").querySelectorAll("[data-tool]").forEach(x => x.classList.toggle("on", x === b)); });
+  $("edBot").querySelectorAll("[data-ed]").forEach(b => b.onclick = () => edAction(b.dataset.ed));
+  edRebuild();
+}
+function closeEditor(){ document.body.classList.remove("editing"); mode = "level"; goHome(); renderEditorMenu(); }
+function edAction(a){
+  const d = ED.data;
+  if (a === "left") ED.cam = Math.max(0, ED.cam - 400);
+  if (a === "right") ED.cam = Math.min(d.w - W, ED.cam + 400);
+  if (a === "wider"){ if (d.w >= ED_W_MAX){ toast("That's the longest a level can be!"); return; } edPush(); d.w = Math.min(ED_W_MAX, d.w + 600); edRebuild(); ED.cam = d.w - W; toast("📏 Level is longer now"); }
+  if (a === "undo"){ const h = ED.history.pop(); if (h){ ED.data = JSON.parse(h); edRebuild(); } else toast("Nothing to undo"); }
+  if (a === "test" || a === "save"){
+    if (!d.goos.length){ toast("Add at least one 🟢 goo puddle first!"); sfx.fail(); return; }
+    d.name = ($("edName").value || "").trim().slice(0, 24) || "My Level";
+    if (a === "test"){ playCustom(d, true); return; }
+    const copy = cleanLevel(d);
+    if (ED.editIdx >= 0 && S.myLevels[ED.editIdx]) S.myLevels[ED.editIdx] = copy;
+    else { if (S.myLevels.length >= 30){ toast("You have 30 levels — delete one first."); return; } S.myLevels.push(copy); ED.editIdx = S.myLevels.length - 1; }
+    save(); sfx.coin(); toast(`💾 Saved "${copy.name}"!`);
+  }
+  if (a === "exit") closeEditor();
+}
+function edWorld(pt){ return { x: pt.x + camX, y: pt.y }; }
+function edPlatAt(x, y){ let best = -1, bd = 1e9; ED.data.plats.forEach((p, i) => { if (x >= p[0] - 10 && x <= p[0] + p[2] + 10){ const dy = p[1] - y; if (dy >= -26 && dy < 90 && Math.abs(dy) < bd){ bd = Math.abs(dy); best = i; } } }); return best; }
+function edDown(pt){
+  const w = edWorld(pt), t = ED.tool, d = ED.data;
+  if (t === "pan"){ ED.drag = { pan:true, sx: pt.x, cam: ED.cam }; return; }
+  if (["rock","ice","bounce","move"].includes(t)){ ED.drag = { x0: snap(w.x), y: clamp(snap(w.y), 80, 470) }; return; }
+  edPush();
+  if (t === "goo" || t === "golden" || t === "mega"){
+    const i = edPlatAt(w.x, w.y);
+    if (i < 0 || d.plats[i][3] === "bounce"){ ED.history.pop(); toast("Put goo on top of a rock!"); return; }
+    const p = d.plats[i], gw = t === "mega" ? 90 : 64; d.goos.push([i, clamp(Math.round(w.x - p[0] - gw/2), 4, Math.max(4, p[2] - gw - 4)), t === "golden" ? 1 : 0, t === "mega" ? 1 : 0]);
+  } else if (["gem","bubble","quiz","treasure","heart"].includes(t)) d.items.push([t, Math.round(w.x), clamp(Math.round(w.y), 60, 470)]);
+  else if (t === "power"){ const k = Object.keys(POWERS)[ED.powerN++ % 5]; d.items.push(["power", Math.round(w.x), clamp(Math.round(w.y), 60, 470), k]); toast(POWERS[k].e + " " + POWERS[k].name); }
+  else if (t === "fan" || t === "geyser") d.fans.push([snap(w.x) - 28, t === "geyser" ? 1 : 0]);
+  else if (t === "erase"){ if (!edErase(w.x, w.y)){ ED.history.pop(); return; } }
+  else { ED.history.pop(); return; }
+  sfx.tick(); edRebuild();
+}
+function edErase(x, y){
+  const d = ED.data;
+  let k = d.items.findIndex(it => Math.hypot(it[1] - x, it[2] - y) < 28); if (k >= 0){ d.items.splice(k, 1); return true; }
+  k = d.goos.findIndex(g => { const p = d.plats[g[0]]; if (!p) return false; const gx = p[0] + g[1]; return x > gx - 6 && x < gx + (g[3] ? 90 : 64) + 6 && y > p[1] - 34 && y < p[1] + 6; }); if (k >= 0){ d.goos.splice(k, 1); return true; }
+  k = d.fans.findIndex(f => x > f[0] - 10 && x < f[0] + 66 && y > SLIME_Y - 80); if (k >= 0){ d.fans.splice(k, 1); return true; }
+  k = d.plats.findIndex(p => x >= p[0] && x <= p[0] + p[2] && y >= p[1] - 10 && y <= p[1] + 34);
+  if (k === 0){ toast("The START rock stays — it's where you begin!"); return false; }
+  if (k > 0){ d.plats.splice(k, 1); d.goos = d.goos.filter(g => g[0] !== k).map(g => [g[0] > k ? g[0] - 1 : g[0], g[1], g[2], g[3]]); return true; }
+  return false;
+}
+function edMove(pt){
+  ED.hover = edWorld(pt);
+  if (ED.drag && ED.drag.pan){ ED.cam = clamp(ED.drag.cam - (pt.x - ED.drag.sx), 0, Math.max(0, ED.data.w - W)); }
+}
+function edUp(pt){
+  const dr = ED.drag; ED.drag = null; if (!dr || dr.pan) return;
+  const w = edWorld(pt), x1 = snap(w.x), x0 = Math.min(dr.x0, x1), wid = Math.max(60, Math.abs(x1 - dr.x0) || 160);
+  if (ED.data.plats.length >= 150){ toast("That's a lot of rocks! (150 max)"); return; }
+  edPush(); ED.data.plats.push([clamp(x0, 0, ED.data.w - 60), dr.y, Math.min(wid, 800), ED.tool]); sfx.tick(); edRebuild();
+}
+function drawEditorOverlay(cx){
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,.05)"; ctx.lineWidth = 1;
+  for (let x = -(cx % 100); x < W; x += 100){ ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 100; y < H; y += 100){ ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  const p0 = plats[0]; if (p0){ ctx.font = "900 14px system-ui"; ctx.fillStyle = "#8dff5a"; ctx.textAlign = "center"; ctx.fillText("START", p0.x - cx + 110, p0.y + 17); }
+  const endX = ED.data.w - cx; ctx.fillStyle = "rgba(255,107,138,.25)"; ctx.fillRect(endX - 6, 0, 6, H);
+  if (ED.drag && !ED.drag.pan && ED.hover){ const x1 = snap(ED.hover.x), x0 = Math.min(ED.drag.x0, x1), wid = Math.max(60, Math.abs(x1 - ED.drag.x0)); ctx.fillStyle = "rgba(141,255,90,.35)"; ctx.strokeStyle = "#8dff5a"; ctx.lineWidth = 2; rr(x0 - cx, ED.drag.y, wid, 24, 8); ctx.fill(); ctx.stroke(); }
+  else if (ED.hover && ED.tool !== "pan"){ const t = ED_TOOLS.find(x => x[0] === ED.tool); ctx.globalAlpha = 0.7; ctx.font = "22px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t ? t[1] : "", ED.hover.x - cx, ED.hover.y - 18); ctx.textBaseline = "alphabetic"; ctx.globalAlpha = 1; }
+  ctx.font = "700 12px system-ui"; ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.6)";
+  ctx.fillText(["rock","ice","bounce","move"].includes(ED.tool) ? "Click and drag to draw a platform" : ED.tool === "pan" ? "Drag to scroll (or use ◀ ▶ / arrow keys)" : ED.tool === "erase" ? "Click something to remove it" : ED.tool.includes("goo") || ED.tool === "golden" || ED.tool === "mega" ? "Click on top of a rock to add goo" : "Click to place", 12, 74);
+  ctx.restore();
+}
+function playCustom(L, testing){
+  ED.playing = cleanLevel(L); ED.testing = !!testing;
+  document.body.classList.remove("editing");
+  mode = "custom"; levelIdx = 0; mod = null; party = null; BT = null; balloons = [];
+  opts = { hue: ED.playing.hue, grav: ED.playing.grav };
+  buildCustom(ED.playing); begin(ED.playing.time);
+  try { startMusic(4); } catch(e){}
+  say("🛠️ " + ED.playing.name + " — clean all the goo!", "#8dff5a");
+}
+function renderEditorMenu(){
+  let h = `<p class="sub">Build your own levels! Draw rocks, add goo, gems, fans and more, then test and share them with a code.</p>
+    <div class="btns" style="margin-top:0"><button class="primary" data-act="edNew">➕ New level</button></div>
+    <div class="sec">MY LEVELS <span>${S.myLevels.length}/30</span></div>`;
+  if (!S.myLevels.length) h += `<p class="sub">No levels yet — tap <b>New level</b> to make your first one!</p>`;
+  S.myLevels.forEach((L, i) => {
+    h += `<div class="quest"><span class="ic" style="width:34px;height:34px;border-radius:10px;background:hsl(${L.hue},45%,25%);display:flex;align-items:center;justify-content:center">🛠️</span><div class="body"><b>${esc(L.name)}</b><br><small>🟢 ${L.goos.length} goo · 🪨 ${L.plats.length} rocks · ⏱ ${fmt(L.time)}</small></div><button class="primary small" data-act="edPlay" data-arg="${i}">▶ Play</button><button class="small" data-act="edEdit" data-arg="${i}">✏️ Edit</button><button class="small" data-act="edShare" data-arg="${i}">📤 Share</button><button class="small" data-act="edDelete" data-arg="${i}">🗑️</button></div>`;
+  });
+  h += `<textarea id="shareBox" readonly style="display:none;width:100%;height:70px;margin-top:6px;background:#0b1030;color:var(--ink);border:1px solid var(--line);border-radius:10px;font:12px ui-monospace,monospace;padding:8px"></textarea>
+    <div class="sec">📥 IMPORT A FRIEND'S LEVEL</div><div class="row"><input type="text" id="importIn" placeholder="Paste a level code (starts with SJ1:)" aria-label="Level code" style="flex:1;min-width:200px"><button class="primary" data-act="edImport">Import</button></div>`;
+  panel("🛠️ Level Editor", h, renderEditorMenu);
+}
+// editor field listeners
+$("edName").addEventListener("input", e => { if (ED.data) ED.data.name = e.target.value.slice(0, 24); });
+$("edHue").addEventListener("input", e => { if (ED.data){ ED.data.hue = +e.target.value; hue = ED.data.hue; opts.hue = hue; } });
+$("edTime").addEventListener("change", e => { if (ED.data){ edPush(); ED.data.time = +e.target.value; } });
+$("edGrav").addEventListener("change", e => { if (ED.data){ edPush(); ED.data.grav = +e.target.value; } });
+document.querySelectorAll("#edTop [data-ed]").forEach(b => b.onclick = () => edAction(b.dataset.ed));
+setInterval(() => { if (mode === "editor" && ED.data){ if (keys.left) ED.cam = Math.max(0, ED.cam - 18); if (keys.right) ED.cam = Math.min(Math.max(0, ED.data.w - W), ED.cam + 18); } }, 16);
+
 // ================= challenge (dash) =================
 const DASH_LEVELS = [
   { id:"breezy",   name:"Easy Breezy",   face:"🙂", diff:"Easy",   seed:55, n:14, d:0, hue:170, reward:60,  pal:"C" },
@@ -1454,7 +1627,7 @@ function renderChallenge(){
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function render(){
   if (mode === "dash" && D) return dashRender();
-  const target = clamp(P.x - W*0.42, 0, Math.max(0, worldW - W));
+  const target = mode === "editor" ? clamp(ED.cam, 0, Math.max(0, worldW - W)) : clamp(P.x - W*0.42, 0, Math.max(0, worldW - W));
   camX += (target - camX) * 0.12;
   const cx = camX + (shake > 0 ? (Math.random()-.5)*14*shake/0.3 : 0);
   ctx.save(); if (shake > 0) ctx.translate(0, (Math.random()-.5)*12*shake/0.3);
@@ -1632,6 +1805,7 @@ function render(){
   if (msgT > 0){ ctx.globalAlpha = Math.min(1, msgT*2); ctx.font = "900 26px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = msgC; ctx.fillText(msg, W/2, 100); ctx.globalAlpha = 1; }
   if (flash > 0){ ctx.fillStyle = `rgba(255,143,208,${flash*0.5})`; ctx.fillRect(0,0,W,H); }
   ctx.textAlign = "left";
+  if (mode === "editor") drawEditorOverlay(cx);
   ctx.restore();
 }
 function drawBoss(cx){
@@ -1829,6 +2003,7 @@ function renderHome(){
       <button class="tile" data-act="passPanel">${bdg(b.pass)}<span class="ic">⭐</span><b>Star Pass</b><small>Lv ${L} rewards</small></button>
       <button class="tile" data-act="seasonPanel" style="border-color:#ffd166">${bdg(b.season)}<span class="ic">🎟️</span><b>Season Pass</b><small>Tier ${seasonTier()}/30 · ${seasonEnds()} left</small></button>
       <button class="tile" data-act="codesPanel"><span class="ic">🔑</span><b>Codes</b><small>Secret rewards</small></button>
+      <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="chatPanel"><span class="ic">💬</span><b>Chat</b><small>Local chat</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
       <button class="tile" data-act="shopPanel"><span class="ic">🛍️</span><b>Shop</b><small>Suits · hats · water</small></button>
@@ -2046,6 +2221,13 @@ function rain(n, best){
 const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
+  editorMenu: () => renderEditorMenu(),
+  edNew: () => { ED.data = blankLevel(); ED.editIdx = -1; ED.history = []; openEditor(); },
+  edEdit: i => { const L = S.myLevels[+i]; if (!L) return; ED.data = JSON.parse(JSON.stringify(L)); ED.editIdx = +i; ED.history = []; openEditor(); },
+  edPlay: i => { const L = S.myLevels[+i]; if (L) playCustom(L, false); },
+  edDelete: i => { i = +i; const L = S.myLevels[i]; if (!L) return; if (ED.confirmDel !== i){ ED.confirmDel = i; note(`Tap 🗑️ again to delete "${L.name}"`); return; } ED.confirmDel = null; S.myLevels.splice(i, 1); save(); renderEditorMenu(); },
+  edShare: i => { const L = S.myLevels[+i]; if (!L) return; const code = levelCode(L); const box = $("shareBox"); if (box){ box.style.display = "block"; box.value = code; box.select(); } try { navigator.clipboard.writeText(code).then(() => note("📋 Code copied! Send it to a friend — they paste it in Import.")).catch(() => note("Copy the code from the box below.")); } catch(e){ note("Copy the code from the box below."); } },
+  edImport: () => { const v = ($("importIn").value || "").trim(); const L = parseLevelCode(v); if (!L){ note("Hmm, that code doesn't work. Make sure you copied all of it."); sfx.fail(); return; } if (S.myLevels.length >= 30){ note("You have 30 levels — delete one first."); return; } S.myLevels.push(L); save(); sfx.win(); renderEditorMenu(); toast(`📥 Imported "${L.name}"!`); },
   chatPanel: renderChat,
   chatSend: () => { const el = $("chatIn"), value = (el?.value || "").trim(); if (!value) return; chatMessages.push({ name: S.name || "Player", text: value.slice(0,120) }); if (chatMessages.length > 40) chatMessages.shift(); renderChat(); },
   seasonPanel: renderSeason, codesPanel: renderCodes,
@@ -2211,7 +2393,7 @@ function startParty(id){
   genArena(id); begin(pd.time);
   say(pd.icon + " " + pd.name + "!", "#ffd166");
 }
-function quit(){ running = false; pointer.down = false; save(); goHome(); }
+function quit(){ running = false; pointer.down = false; save(); if (mode === "custom" && ED.testing){ openEditor(); return; } if (mode === "editor"){ closeEditor(); return; } goHome(); }
 
 function finish(clean){
   running = false; pointer.down = false;
@@ -2220,12 +2402,21 @@ function finish(clean){
   const starBonus = st * 10, notes = [];
   let xp = runGoo * 2;
   (clean ? sfx.win : sfx.fail)();
-  $("doneStars").textContent = clean && mode !== "titan" && mode !== "party" && mode !== "battle" ? "★".repeat(st) + "☆".repeat(3 - st) : "";
+  $("doneStars").textContent = clean && mode !== "titan" && mode !== "party" && mode !== "battle" && mode !== "custom" ? "★".repeat(st) + "☆".repeat(3 - st) : "";
   const btns = $("doneBtns"); btns.innerHTML = "";
   const addBtn = (label, fn, primary) => { const b = document.createElement("button"); b.textContent = label; if (primary) b.className = "primary"; b.onclick = fn; btns.appendChild(b); return b; };
   const pendingRewards = [];
 
-  if (mode === "battle"){
+  if (mode === "custom"){
+    const L = ED.playing;
+    runGems = 0; runGoo = 0; xp = 0;
+    $("doneTitle").innerHTML = clean ? 'Level <span>complete!</span>' : 'So <span>close!</span>';
+    $("doneName").textContent = "🛠️ " + (L && L.name || "My Level");
+    $("doneScore").textContent = clean ? `Cleaned all ${total} goo with ${fmt(timeLeft)} left!` : `Goo ${cleaned}/${total}`;
+    $("doneBreak").innerHTML = "Custom levels are just for fun — no gems or XP, so nobody can farm the leaderboard 😉";
+    if (ED.testing){ addBtn("Back to editor", openEditor, true); addBtn(clean ? "Test again" : "Try again", () => playCustom(L, true)); }
+    else { addBtn(clean ? "Play again" : "Try again", () => playCustom(L, false), true); addBtn("My Levels", renderEditorMenu); addBtn("Home", goHome); }
+  } else if (mode === "battle"){
     const bt = BATTLES[BT.tier], rec = S.battle[BT.tier] || (S.battle[BT.tier] = { wins:0, best:0 });
     rec.best = Math.max(rec.best, clean ? bt.waves : BT.wave - 1);
     xp += 30 + BT.cleaned*3 + (clean ? 80 + BT.tier*60 : 0);
@@ -2306,10 +2497,10 @@ function finish(clean){
     addBtn(clean ? "Replay" : "Try again", () => startLevel(levelIdx), !clean);
     addBtn("Map", renderMap);
   }
-  if (clean && mode !== "titan" && mode !== "party" && mode !== "battle") S.gems += starBonus;
+  if (clean && mode !== "titan" && mode !== "party" && mode !== "battle" && mode !== "custom") S.gems += starBonus;
   S.gems += runGems;
   const bud = buddyInfo(); if (bud) notes.push(`${bud.p.e} ${bud.p.name} helped out!`);
-  const sxp = runGoo*10 + Math.round(xp*0.8) + 20; addSeasonXP(sxp);
+  const sxp = mode === "custom" ? 0 : runGoo*10 + Math.round(xp*0.8) + 20; addSeasonXP(sxp);
   notes.unshift(`+${xp} XP · +${sxp} Season XP`);
   addXP(xp); checkAwards(); save(); syncLB();
   $("doneNote").innerHTML = notes.map(esc).join("<br>");
