@@ -352,7 +352,7 @@ const QUESTS = [
   { k:"gems", goal:40, t:"Collect 40 gems", ic:"💎" }, { k:"levels", goal:2, t:"Clear 2 outposts", ic:"🏁" },
   { k:"bounces", goal:5, t:"Boing on 5 bounce pads", ic:"🦘" }, { k:"bubbles", goal:3, t:"Grab 3 water bubbles", ic:"🫧" },
   { k:"combo", goal:2, t:"Get 2 goo combos (x3)", ic:"🔥" }, { k:"daily", goal:1, t:"Clear the Daily Outpost", ic:"🛰️" },
-  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"harvests", goal:3, t:"Harvest 3 crops on your farm", ic:"🌾" }, { k:"raceWins", goal:1, t:"Win a Rocket Race", ic:"🏁" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" },
+  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"harvests", goal:3, t:"Collect 3 crystals in your lab", ic:"🔬" }, { k:"raceWins", goal:1, t:"Win a Rocket Race", ic:"🏁" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" },
 ];
 const AWARDS = [
   { id:"first",   e:"💦", name:"First Splash",   d:"Clean your first goo",     g:10,  ok:() => S.stats.goo >= 1 },
@@ -387,8 +387,8 @@ const AWARDS = [
   { id:"treas21", e:"🏴‍☠️", name:"Master Explorer",d:"Find all 21 hidden treasures",g:300, ok:() => S.treasures.length >= 21 },
   { id:"megaevo", e:"🌟", name:"Mega Evolution", d:"Evolve a pal to MEGA",     g:100, ok:() => Object.values(S.pals).some(p => p.mega) },
   { id:"champ",   e:"🏆", name:"Number One!",    d:"Reach #1 on a leaderboard",g:150, ok:() => !!S.champ },
-  { id:"farmer",  e:"🧑‍🌾", name:"Space Farmer",  d:"Harvest 25 crops",         g:100, ok:() => (S.stats.harvests || 0) >= 25 },
-  { id:"defender",e:"🛡️", name:"Farm Defender", d:"Defend your farm 5 times", g:80,  ok:() => (S.stats.defends || 0) >= 5 },
+  { id:"farmer",  e:"🧑‍🔬", name:"Crystal Scientist", d:"Collect 25 crystals",         g:100, ok:() => (S.stats.harvests || 0) >= 25 },
+  { id:"defender",e:"🛡️", name:"Lab Defender", d:"Defend your lab 5 times", g:80,  ok:() => (S.stats.defends || 0) >= 5 },
   { id:"racer",   e:"🏁", name:"Speed Star",     d:"Win 5 Rocket Races",       g:100, ok:() => S.stats.raceWins >= 5 },
   { id:"decor",   e:"🏠", name:"Home Sweet Base",d:"Place 10 things in your base", g:60, ok:() => S.base && Object.keys(S.base.cells).length >= 10 },
   { id:"gifter",  e:"🎁", name:"Kind Friend",    d:"Gift a pal to a friend",   g:50,  ok:() => S.stats.gifts >= 1 },
@@ -1207,7 +1207,7 @@ const BATTLES = [
   { name:"Rookie Battle", icon:"🛡️", waves:5, hearts:5, pool:["blobby","zappy","boing"], giantHp:30, hue:120, color:"#8dff5a" },
   { name:"Brave Battle",  icon:"⚔️", waves:7, hearts:5, pool:["blobby","zappy","boing","chomp","spitz"], giantHp:50, hue:20, color:"#5cc8ff" },
   { name:"Hero Battle",   icon:"👑", waves:9, hearts:4, pool:["blobby","zappy","boing","chomp","spitz"], giantHp:80, hue:300, color:"#ffd166" },
-  { name:"Farm Defense",  icon:"🌾", waves:3, hearts:5, pool:["blobby","boing","chomp"], giantHp:20, hue:95, color:"#8dff5a", hidden:true },
+  { name:"Lab Defense",  icon:"🔬", waves:3, hearts:5, pool:["blobby","boing","chomp"], giantHp:20, hue:95, color:"#8dff5a", hidden:true },
 ];
 let BT = null;
 function makeWave(tier, w){
@@ -1446,11 +1446,11 @@ function renderBattle(){
 
 // ================= space farm =================
 const SEEDS = [
-  { id:"carrot",    e:"🥕", name:"Star Carrot",    cost:5,   min:2,   g:15 },
-  { id:"berry",     e:"🍓", name:"Moon Berry",     cost:15,  min:10,  g:50 },
-  { id:"corn",      e:"🌽", name:"Comet Corn",     cost:30,  min:30,  g:120, s:1 },
-  { id:"gemflower", e:"🌸", name:"Gem Flower",     cost:60,  min:120, g:300, s:2 },
-  { id:"pumpkin",   e:"🎃", name:"Galaxy Pumpkin", cost:150, min:480, g:800, s:3, egg:1 },
+  { id:"carrot",    e:"🔷", name:"Ice Crystal",    cost:5,   min:2,   g:15 },
+  { id:"berry",     e:"💜", name:"Moon Amethyst",     cost:15,  min:10,  g:50 },
+  { id:"corn",      e:"🔶", name:"Comet Topaz",     cost:30,  min:30,  g:120, s:1 },
+  { id:"gemflower", e:"💎", name:"Star Diamond",     cost:60,  min:120, g:300, s:2 },
+  { id:"pumpkin",   e:"🔮", name:"Galaxy Orb", cost:150, min:480, g:800, s:3, egg:1 },
 ];
 const SEED = id => SEEDS.find(x => x.id === id);
 const FARM_MAX = 9;
@@ -1461,19 +1461,19 @@ function farmProg(pl){ return clamp((Date.now() - pl.t0) / pl.dur, 0, 1); }
 function farmLeft(pl){ const ms = Math.max(0, pl.t0 + pl.dur - Date.now()), m = Math.floor(ms/60000), sec = Math.floor(ms/1000) % 60, h = Math.floor(m/60); return h ? `${h}h ${m%60}m` : m ? `${m}m ${sec}s` : `${sec}s`; }
 function farmReadyCount(){ return S.farm ? S.farm.plots.filter(pl => pl && farmReady(pl)).length : 0; }
 function farmPlotHTML(pl, i){
-  if (!pl) return `<button class="item" data-act="farmPick" data-arg="${i}" style="min-height:118px;background:#2a1d10;border-color:#5a3a20"><span class="em" style="font-size:30px">🟫</span><b>Empty plot</b><span class="p">${farmPick === i ? "Choose a seed ↓" : "Tap to plant"}</span></button>`;
-  const sd = SEED(pl.seed), ready = farmReady(pl), p = farmProg(pl), stage = ready ? sd.e : p < 0.33 ? "🌱" : p < 0.75 ? "🌿" : "🪴";
-  return `<div class="item" style="min-height:118px;background:linear-gradient(#1a2150,#2a1d10);border-color:${ready ? "#ffd166" : "#5a3a20"}"><span class="em" style="font-size:${ready ? 36 : 30}px">${stage}</span><b>${sd.name}</b>${ready ? `<button class="small gold" data-act="farmHarvest" data-arg="${i}">✨ Harvest</button>` : `<div class="bar" style="width:90%"><i data-fbar="${i}" style="width:${Math.round(p*100)}%"></i></div><span class="p" data-ftime="${i}">${farmLeft(pl)}</span>${pl.w ? `<span class="p">💧 watered</span>` : `<button class="small" data-act="farmWater" data-arg="${i}">💧 Water</button>`}`}</div>`;
+  if (!pl) return `<button class="item" data-act="farmPick" data-arg="${i}" style="min-height:118px;background:#101a3a;border-color:#2e4a8a"><span class="em" style="font-size:30px">⚗️</span><b>Empty pod</b><span class="p">${farmPick === i ? "Choose a crystal ↓" : "Tap to grow"}</span></button>`;
+  const sd = SEED(pl.seed), ready = farmReady(pl), p = farmProg(pl), stage = ready ? sd.e : p < 0.33 ? "🫧" : p < 0.75 ? "🧪" : "⚗️";
+  return `<div class="item" style="min-height:118px;background:linear-gradient(#1a2150,#0e2a3a);border-color:${ready ? "#ffd166" : "#2e4a8a"}"><span class="em" style="font-size:${ready ? 36 : 30}px">${stage}</span><b>${sd.name}</b>${ready ? `<button class="small gold" data-act="farmHarvest" data-arg="${i}">⛏️ Collect</button>` : `<div class="bar" style="width:90%"><i data-fbar="${i}" style="width:${Math.round(p*100)}%"></i></div><span class="p" data-ftime="${i}">${farmLeft(pl)}</span>${pl.w ? `<span class="p">⚡ charged</span>` : `<button class="small" data-act="farmWater" data-arg="${i}">⚡ Charge</button>`}`}</div>`;
 }
 function renderFarm(){
   const F = farmState();
   if (!F.pest && F.plots.some(pl => pl && !farmReady(pl)) && Date.now() - F.lastPest > 8*60000 && Math.random() < 0.4){ F.lastPest = Date.now(); F.pest = pick(["chomp","boing","blobby","spitz"]); save(); }
-  let h = `<p class="sub">Plant seeds, water them, and harvest them for gems! Crops keep growing even when you're playing other modes. Watch out for sneaky farm monsters! 👀</p><div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">🌾 ${S.stats.harvests || 0} harvested</span></div>`;
-  if (F.pest){ const m = MONSTERS[F.pest]; h += `<div class="quest" style="border-color:#ff6b6b;background:linear-gradient(90deg,#4a1a1a,#1a2150)"><span class="ic" style="font-size:30px">⚠️</span><div class="body"><b>A ${m.name} is sneaking toward your crops!</b><br><small>Defend your farm to make your crops grow faster — or it might nibble one!</small></div><button class="primary" data-act="farmDefend">⚔️ Defend!</button><button class="small" data-act="farmIgnore">Ignore</button></div>`; }
+  let h = `<p class="sub">Grow space crystals in your lab pods, charge them up, and collect them for gems! Crystals keep growing even when you're playing other modes. Watch out for sneaky lab raiders! 👀</p><div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">⛏️ ${S.stats.harvests || 0} collected</span></div>`;
+  if (F.pest){ const m = MONSTERS[F.pest]; h += `<div class="quest" style="border-color:#ff6b6b;background:linear-gradient(90deg,#4a1a1a,#1a2150)"><span class="ic" style="font-size:30px">⚠️</span><div class="body"><b>A ${m.name} is sneaking into your lab!</b><br><small>Defend your lab to make your crystals grow faster — or it might crack one!</small></div><button class="primary" data-act="farmDefend">⚔️ Defend!</button><button class="small" data-act="farmIgnore">Ignore</button></div>`; }
   h += `<div class="items" style="grid-template-columns:repeat(3,1fr)">${F.plots.map(farmPlotHTML).join("")}</div>`;
-  if (farmPick >= 0) h += `<div class="sec">🌱 CHOOSE A SEED FOR PLOT ${farmPick + 1}</div><div class="row">${SEEDS.map(sd => `<button class="packbtn" data-act="farmPlant" data-arg="${sd.id}" style="min-width:120px"><span class="em">${sd.e}</span><b>${sd.name}</b><span>💎 ${sd.cost}</span><small>Grows in ${sd.min >= 60 ? sd.min/60 + "h" : sd.min + " min"} → ${sd.g} 💎${sd.s ? " + " + sd.s + " ✨" : ""}${sd.egg ? " + 🥚" : ""}</small></button>`).join("")}</div>`;
-  if (F.plots.length < FARM_MAX) h += `<div class="btns"><button class="small" data-act="farmBuy">➕ Buy another plot · 💎 ${150 * (F.plots.length - 5)}</button></div>`;
-  panel("🌾 Space Farm", h, renderFarm);
+  if (farmPick >= 0) h += `<div class="sec">🔬 CHOOSE A CRYSTAL FOR POD ${farmPick + 1}</div><div class="row">${SEEDS.map(sd => `<button class="packbtn" data-act="farmPlant" data-arg="${sd.id}" style="min-width:120px"><span class="em">${sd.e}</span><b>${sd.name}</b><span>💎 ${sd.cost}</span><small>Grows in ${sd.min >= 60 ? sd.min/60 + "h" : sd.min + " min"} → ${sd.g} 💎${sd.s ? " + " + sd.s + " ✨" : ""}${sd.egg ? " + 🥚" : ""}</small></button>`).join("")}</div>`;
+  if (F.plots.length < FARM_MAX) h += `<div class="btns"><button class="small" data-act="farmBuy">➕ Buy another pod · 💎 ${150 * (F.plots.length - 5)}</button></div>`;
+  panel("🔬 Crystal Lab", h, renderFarm);
   clearInterval(farmTimer);
   farmTimer = setInterval(() => {
     if (currentPanel !== renderFarm || $("panel").classList.contains("hidden")){ clearInterval(farmTimer); return; }
@@ -2485,7 +2485,7 @@ function renderHome(){
       <button class="tile" data-act="seasonPanel" style="border-color:#ffd166">${bdg(b.season)}<span class="ic">🎟️</span><b>Season Pass</b><small>Tier ${seasonTier()}/30 · ${seasonEnds()} left</small></button>
       <button class="tile" data-act="codesPanel"><span class="ic">🔑</span><b>Codes</b><small>Secret rewards</small></button>
       <button class="tile" data-act="basePanel" style="border-color:#c49bff"><span class="ic">🏠</span><b>My Base</b><small>Decorate your room</small></button>
-      <button class="tile" data-act="farmPanel" style="border-color:#8dff5a;background:linear-gradient(135deg,#1a3a1a,#2a1d10)">${bdg(farmReadyCount())}<span class="ic">🌾</span><b>Space Farm</b><small>${farmReadyCount() ? farmReadyCount() + " ready to harvest!" : "Grow crops for gems"}</small></button>
+      <button class="tile" data-act="farmPanel" style="border-color:#5cc8ff;background:linear-gradient(135deg,#102a4a,#2a1050)">${bdg(farmReadyCount())}<span class="ic">🔬</span><b>Crystal Lab</b><small>${farmReadyCount() ? farmReadyCount() + " ready to collect!" : "Grow crystals for gems"}</small></button>
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="friendsPanel" style="border-color:#8dff5a">${bdg(FR.reqIn.length)}<span class="ic">👥</span><b>Friends</b><small>${FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"}</small></button>
@@ -2805,12 +2805,12 @@ const ACT = {
   giftPal: id => { const own = S.pals[id]; if (!own) return; if (own.lvl < 2){ note("You can only gift a pal that's at least Lv 2 (it goes down 1 level)."); return; } own.lvl--; S.stats.gifts++; checkAwards(); save(); const code = giftCode(id); const box = $("giftBox"); if (box){ box.style.display = "block"; box.value = code; box.select(); } try { navigator.clipboard.writeText(code).catch(() => {}); } catch(e){} note(`🎁 Gift code made for ${PAL(id).name}! Send it to a friend — they type it in 🔑 Codes.`); },
   farmPanel: () => { farmPick = -1; renderFarm(); },
   farmPick: i => { farmPick = farmPick === +i ? -1 : +i; renderFarm(); },
-  farmPlant: id => { const F = farmState(), sd = SEED(id); if (farmPick < 0 || F.plots[farmPick]) return; if (S.gems < sd.cost){ note(`Need ${sd.cost - S.gems} more 💎`); sfx.fail(); return; } S.gems -= sd.cost; F.plots[farmPick] = { seed: id, t0: Date.now(), dur: sd.min*60000, w:false }; farmPick = -1; save(); sfx.bubble(); renderFarm(); toast(`${sd.e} Planted ${sd.name}!`); },
-  farmWater: i => { const pl = farmState().plots[+i]; if (!pl || pl.w || farmReady(pl)) return; pl.w = true; pl.t0 -= (pl.t0 + pl.dur - Date.now()) * 0.25; save(); sfx.bubble(); toast("💧 Splash! It grows 25% faster now"); renderFarm(); },
-  farmHarvest: i => { const F = farmState(), pl = F.plots[+i]; if (!pl || !farmReady(pl)) return; const sd = SEED(pl.seed); F.plots[+i] = null; track("harvests", 1); addXP(10 + sd.cost/5); addSeasonXP(20 + sd.cost/3); save(); grantReward({ g: sd.g, s: sd.s, egg: sd.egg }, `🌾 Harvested a ${sd.name}!`); syncLB && syncLB(); },
+  farmPlant: id => { const F = farmState(), sd = SEED(id); if (farmPick < 0 || F.plots[farmPick]) return; if (S.gems < sd.cost){ note(`Need ${sd.cost - S.gems} more 💎`); sfx.fail(); return; } S.gems -= sd.cost; F.plots[farmPick] = { seed: id, t0: Date.now(), dur: sd.min*60000, w:false }; farmPick = -1; save(); sfx.bubble(); renderFarm(); toast(`${sd.e} Started growing ${sd.name}!`); },
+  farmWater: i => { const pl = farmState().plots[+i]; if (!pl || pl.w || farmReady(pl)) return; pl.w = true; pl.t0 -= (pl.t0 + pl.dur - Date.now()) * 0.25; save(); sfx.bubble(); toast("⚡ Zap! It grows 25% faster now"); renderFarm(); },
+  farmHarvest: i => { const F = farmState(), pl = F.plots[+i]; if (!pl || !farmReady(pl)) return; const sd = SEED(pl.seed); F.plots[+i] = null; track("harvests", 1); addXP(10 + sd.cost/5); addSeasonXP(20 + sd.cost/3); save(); grantReward({ g: sd.g, s: sd.s, egg: sd.egg }, `⛏️ Collected ${sd.name}!`); syncLB && syncLB(); },
   farmBuy: () => { const F = farmState(), c = 150 * (F.plots.length - 5); if (F.plots.length >= FARM_MAX) return; if (S.gems < c){ note(`Need ${c - S.gems} more 💎`); sfx.fail(); return; } S.gems -= c; F.plots.push(null); save(); sfx.coin(); renderFarm(); },
   farmDefend: () => startBattle(3),
-  farmIgnore: () => { const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl)); const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); const m = MONSTERS[F.pest]; F.pest = null; save(); renderFarm(); note(v ? `The ${m.name} nibbled your ${SEED(v.seed).name}! It lost half its growth.` : `The ${m.name} wandered off.`); },
+  farmIgnore: () => { const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl)); const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); const m = MONSTERS[F.pest]; F.pest = null; save(); renderFarm(); note(v ? `The ${m.name} cracked your ${SEED(v.seed).name}! It lost half its growth.` : `The ${m.name} wandered off.`); },
   stickersPanel: () => renderStickers(),
   stickerPage: pg => { pg = +pg; const list = STICKERS.slice(pg*10, pg*10 + 10); if (S.stickerPages.includes(pg) || !list.every(x => S.stickers[x.id])) return; S.stickerPages.push(pg); save(); grantReward({ g:150, s:2 }, "📒 Sticker page " + (pg+1) + " complete!"); },
   toggleJet: () => { S.classicJet = !S.classicJet; save(); renderProfile(); },
@@ -3049,13 +3049,13 @@ function finish(clean){
   } else if (mode === "battle" && BT.tier === 3){
     const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl));
     xp += 20 + BT.cleaned*2;
-    $("doneTitle").innerHTML = clean ? 'Farm <span>saved!</span> 🌾' : 'The monsters <span>got in!</span>';
-    $("doneName").textContent = "🌾 Farm Defense";
+    $("doneTitle").innerHTML = clean ? 'Lab <span>saved!</span> 🔬' : 'The monsters <span>got in!</span>';
+    $("doneName").textContent = "🔬 Lab Defense";
     $("doneScore").textContent = BT.cleaned + " monsters chased away";
-    if (clean){ S.stats.defends = (S.stats.defends || 0) + 1; runGems += 50; grow.forEach(pl => pl.t0 -= pl.dur*0.25); $("doneBreak").innerHTML = `Your crops are safe and grew 25% faster!<br>+50 💎 defense bonus`; }
-    else { const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); $("doneBreak").innerHTML = v ? `A monster nibbled your ${SEED(v.seed).name} — it lost half its growth.` : "Luckily there was nothing to eat!"; }
+    if (clean){ S.stats.defends = (S.stats.defends || 0) + 1; runGems += 50; grow.forEach(pl => pl.t0 -= pl.dur*0.25); $("doneBreak").innerHTML = `Your crystals are safe and grew 25% faster!<br>+50 💎 defense bonus`; }
+    else { const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); $("doneBreak").innerHTML = v ? `A monster cracked your ${SEED(v.seed).name} — it lost half its growth.` : "Luckily there was nothing to eat!"; }
     F.pest = null; save();
-    addBtn("Back to farm", renderFarm, true); addBtn("Home", goHome);
+    addBtn("Back to lab", renderFarm, true); addBtn("Home", goHome);
   } else if (mode === "battle"){
     const bt = BATTLES[BT.tier], rec = S.battle[BT.tier] || (S.battle[BT.tier] = { wins:0, best:0 });
     rec.best = Math.max(rec.best, clean ? bt.waves : BT.wave - 1);
