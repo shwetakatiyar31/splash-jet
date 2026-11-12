@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Splash Jet</title>
+<title>Blast Jet</title>
 <style>
   :root { --bg:#070a18; --ink:#eef2ff; --dim:#8d96bd; --water:#5cc8ff; --goo:#8dff5a; --gold:#ffd166; --pink:#ff8fd0; --card:#11173a; --tile:#1a2150; --line:#2e3878; }
   * { box-sizing:border-box; }
@@ -144,7 +144,7 @@
 </head>
 <body>
 <div id="wrap">
-  <canvas id="c" width="960" height="540" aria-label="Splash Jet game"></canvas>
+  <canvas id="c" width="960" height="540" aria-label="Blast Jet game"></canvas>
   <div id="hud">
     <div><span class="k" id="hTimeK">TIME</span><span id="hTime">2:30</span></div>
     <div><span class="k" id="hGooK">GOO</span><span id="hGoo">0</span></div>
@@ -402,7 +402,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 const SAVE_KEY = "splashjet-v2";
 const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
-const save = () => store(SAVE_KEY, S);
+const save = () => { S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
 
 // ---- progression helpers ----
 const levelThreshold = L => 30 * L * (L + 1);      // xp needed to go from L to L+1 (cumulative)
@@ -1031,7 +1031,7 @@ const LB_TABS = [
 ];
 function lbPayload(){
   const bud = buddyInfo();
-  return { name: String(S.name || "Astro").slice(0, 14), av: bud ? bud.p.e : "👩‍🚀", title: String(S.title || "Space Cleaner").slice(0, 24), lvl: playerLevel(), xp: S.xp, goo: S.stats.goo, stars: totalStars(), monsters: S.stats.monsters, pals: Object.keys(S.pals).length, party: Object.values(S.partyBest || {}).reduce((a,b) => a + b, 0), daily: S.dailyBest[today()] || 0, dailyDate: today(), week: weekIdx(), weekGoo: S.weekGoo && S.weekGoo.w === weekIdx() ? S.weekGoo.n : 0 };
+  return { user: String(S.username || "").slice(0, 14), seen: Math.floor(Date.now() / 60000), name: String(S.name || "Astro").slice(0, 14), av: bud ? bud.p.e : "👩‍🚀", title: String(S.title || "Space Cleaner").slice(0, 24), lvl: playerLevel(), xp: S.xp, goo: S.stats.goo, stars: totalStars(), monsters: S.stats.monsters, pals: Object.keys(S.pals).length, party: Object.values(S.partyBest || {}).reduce((a,b) => a + b, 0), daily: S.dailyBest[today()] || 0, dailyDate: today(), week: weekIdx(), weekGoo: S.weekGoo && S.weekGoo.w === weekIdx() ? S.weekGoo.n : 0 };
 }
 async function syncLB(){
   if (!LB.db || !LB.uid || LB.readOnly) return;
@@ -1067,13 +1067,111 @@ function refreshLB(){ lbCheckChamp(); if (currentPanel === renderLeaderboard && 
       LB.rows = snap.docs.filter(d => d.exists).map(d => Object.assign({}, d.data(), { id: d.id }));
       refreshLB();
     }, err => { clearTimeout(timer); LB.status = "error"; refreshLB(); });
-    const cred = await auth.signInAnonymously();
-    LB.uid = cred.user.uid;
+    let user = await new Promise(res => { const un = auth.onAuthStateChanged(u => { un(); res(u); }); });
+    FB.fdb = fdb; FB.auth = auth;
+    if (!user) user = (await auth.signInAnonymously()).user;
+    LB.uid = user.uid; FB.user = user;
     LB.db = { doc: p => fdb.doc(p.replace(/^lb\//, "splashLb/")) };
     CHAT.fdb = fdb; CHAT.ts = () => firebase.firestore.FieldValue.serverTimestamp();
-    refreshLB(); syncLB(); chatConnect();
+    refreshLB(); syncLB(); chatConnect(); friendsConnect();
+    if (!user.isAnonymous) await cloudLoadOnStart();
+    setInterval(() => { if (document.visibilityState === "visible") syncLB(); }, 120000);
   } catch(e){ console.warn("Leaderboard:", e); if (!LB.loaded) LB.status = "off"; LB.readOnly = !LB.uid; refreshLB(); }
 })();
+// ================= Google save + friends =================
+const FB = { fdb:null, auth:null, user:null };
+let cloudTimer = null;
+function isGoogle(){ return !!(FB.user && !FB.user.isAnonymous); }
+function cloudSaveSoon(){ if (!isGoogle()) return; clearTimeout(cloudTimer); cloudTimer = setTimeout(cloudSaveNow, 4000); }
+async function cloudSaveNow(){ if (!isGoogle()) return; try { await FB.fdb.collection("splashSaves").doc(FB.user.uid).set({ d: JSON.stringify(S), at: S.savedAt || Date.now(), v: 1 }); FB.lastCloud = Date.now(); } catch(e){ console.warn("cloud save", e); } }
+async function cloudGet(){ try { const doc = await FB.fdb.collection("splashSaves").doc(FB.user.uid).get(); if (!doc.exists) return null; const o = doc.data(); return { at: o.at || 0, save: JSON.parse(o.d) }; } catch(e){ return null; } }
+async function cloudLoadOnStart(){ const c = await cloudGet(); if (c && c.at > (S.savedAt || 0) + 1000){ store(SAVE_KEY, c.save); location.reload(); } else cloudSaveNow(); }
+async function googleSignIn(){
+  if (!FB.auth){ toast("Can't connect right now — check your internet"); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  let user = null, existing = false;
+  try { user = (await FB.auth.currentUser.linkWithPopup(provider)).user; }
+  catch(e){
+    if (e && (e.code === "auth/credential-already-in-use" || e.code === "auth/email-already-in-use")){
+      const cred = e.credential || (firebase.auth.GoogleAuthProvider.credentialFromError && firebase.auth.GoogleAuthProvider.credentialFromError(e));
+      try { user = cred ? (await FB.auth.signInWithCredential(cred)).user : (await FB.auth.signInWithPopup(provider)).user; existing = true; } catch(e2){ toast("Google sign-in didn't work: " + (e2.code || "error")); return; }
+    } else if (e && e.code === "auth/popup-closed-by-user"){ return; }
+    else { toast("Google sign-in didn't work: " + (e && e.code || "error")); console.warn(e); return; }
+  }
+  FB.user = user; LB.uid = user.uid; LB.lastSent = ""; LB.readOnly = false;
+  const c = existing ? await cloudGet() : null;
+  if (c && c.save && (c.save.xp || 0) > 0 && (S.xp || 0) > 0 && Math.abs((c.save.xp || 0) - (S.xp || 0)) > 0){ renderSaveChoice(c); return; }
+  if (c && c.save && !(S.xp > (c.save.xp || 0))){ store(SAVE_KEY, c.save); location.reload(); return; }
+  await cloudSaveNow(); syncLB(); chatConnect(); friendsConnect(); sfx.win(); toast("☁️ Saved to " + (user.email || "Google") + "!"); renderAccountish();
+}
+function renderAccountish(){ if (currentPanel === renderProfile || currentPanel === renderFriends) currentPanel(); else goHome(); }
+function renderSaveChoice(c){
+  const lc = playerLevel(), cl = (() => { let L = 1; while (L < 99 && (c.save.xp || 0) >= levelThreshold(L)) L++; return L; })();
+  panel("☁️ Which progress do you want?", `<p class="sub">This Google account already has a saved game. Pick which one to keep — the other one will be replaced.</p>
+    <div class="row"><button class="packbtn" data-act="useCloud"><span class="em">☁️</span><b>Google save</b><span>Lv ${cl} · 💎 ${c.save.gems || 0}</span><small>${esc(c.save.name || "")}</small></button>
+    <button class="packbtn" data-act="useLocal"><span class="em">📱</span><b>This device</b><span>Lv ${lc} · 💎 ${S.gems}</span><small>${esc(S.name)}</small></button></div>`, null);
+  FB.choice = c;
+}
+async function googleSignOut(){ if (!FB.auth) return; await cloudSaveNow(); await FB.auth.signOut(); FB.user = (await FB.auth.signInAnonymously()).user; LB.uid = FB.user.uid; LB.lastSent = ""; syncLB(); chatConnect(); friendsConnect(); toast("Signed out — your progress stays on this device"); renderAccountish(); }
+
+const FR = { list:[], reqIn:[], reqOut:[], unsubs:[], profiles:{}, err:"" };
+function pairRoom(a, b){ const h = hashStr([a, b].sort().join("|")), al = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = "", x = h; for (let i=0;i<6;i++){ c += al[x % al.length]; x = Math.floor(x / al.length) + (i + 7) * 131; } return c; }
+function friendsConnect(){
+  FR.unsubs.forEach(u => { try { u(); } catch(e){} }); FR.unsubs = []; FR.list = []; FR.reqIn = []; FR.reqOut = [];
+  if (!FB.fdb || !LB.uid) return;
+  const me = LB.uid, rerender = () => { if (currentPanel === renderFriends && !$("panel").classList.contains("hidden")) renderFriends(); else { const t = document.querySelector('[data-act="friendsPanel"] small'); if (t) t.textContent = FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"; } };
+  FR.unsubs.push(FB.fdb.collection("splashFriends").doc(me).onSnapshot(d => { FR.list = (d.exists && Array.isArray(d.data().list)) ? d.data().list : []; rerender(); }, () => {}));
+  FR.unsubs.push(FB.fdb.collection("splashReq").where("to", "==", me).onSnapshot(snap => { const before = FR.reqIn.length; FR.reqIn = snap.docs.map(x => Object.assign({ id: x.id }, x.data())).filter(r => r.status === "pending"); if (FR.reqIn.length > before && before >= 0 && FR.loadedIn) { toast("👥 " + (FR.reqIn[FR.reqIn.length - 1].fromName || "Someone") + " wants to be friends!"); sfx.coin(); } FR.loadedIn = true; rerender(); }, () => {}));
+  FR.unsubs.push(FB.fdb.collection("splashReq").where("from", "==", me).onSnapshot(async snap => {
+    FR.reqOut = snap.docs.map(x => Object.assign({ id: x.id }, x.data()));
+    for (const r of FR.reqOut){ if (r.status === "accepted"){ await addFriendLocal(r.to); FB.fdb.collection("splashReq").doc(r.id).delete().catch(() => {}); toast("🎉 You're now friends!"); } else if (r.status === "declined"){ FB.fdb.collection("splashReq").doc(r.id).delete().catch(() => {}); } }
+    rerender();
+  }, () => {}));
+}
+async function addFriendLocal(uid){ if (FR.list.includes(uid) || uid === LB.uid) return; const list = FR.list.concat([uid]).slice(0, 100); await FB.fdb.collection("splashFriends").doc(LB.uid).set({ list }); }
+async function claimUsername(raw){
+  const u = String(raw || "").trim().toLowerCase();
+  if (!/^[a-z0-9_]{3,14}$/.test(u)) return "Usernames are 3–14 letters, numbers or _ (no spaces).";
+  if (!FB.fdb || !LB.uid) return "Can't connect right now.";
+  const ref = FB.fdb.collection("splashNames").doc(u);
+  try {
+    const d = await ref.get();
+    if (d.exists && d.data().uid !== LB.uid) return "Sorry, @" + u + " is taken — try another!";
+    if (!d.exists) await ref.set({ uid: LB.uid });
+    if (S.username && S.username !== u){ FB.fdb.collection("splashNames").doc(S.username).delete().catch(() => {}); }
+    S.username = u; save(); LB.lastSent = ""; syncLB(); return "";
+  } catch(e){ return "Couldn't save that username — ask a grown-up to update the Firebase rules."; }
+}
+async function sendFriendRequest(raw){
+  const u = String(raw || "").trim().toLowerCase().replace(/^@/, "");
+  if (!S.username) return "Pick your own username first!";
+  if (!/^[a-z0-9_]{3,14}$/.test(u)) return "That doesn't look like a username.";
+  if (u === S.username) return "That's you! 😄";
+  try {
+    const d = await FB.fdb.collection("splashNames").doc(u).get();
+    if (!d.exists) return "Nobody has the username @" + u + " yet.";
+    const to = d.data().uid; if (FR.list.includes(to)) return "You're already friends with @" + u + "!";
+    await FB.fdb.collection("splashReq").doc(to + "_" + LB.uid).set({ from: LB.uid, to, fromName: "@" + S.username, status: "pending" });
+    return "ok";
+  } catch(e){ return "Couldn't send — ask a grown-up to update the Firebase rules."; }
+}
+function friendInfo(uid){ return LB.rows.find(r => r.id === uid) || {}; }
+function renderFriends(){
+  let h = "";
+  if (!FB.fdb || !LB.uid){ panel("👥 Friends", `<p class="sub">Friends need an internet connection. Try again in a moment!</p>`, renderFriends); return; }
+  h += `<div class="who" style="margin-top:0"><span class="av">🪪</span><div style="flex:1"><div class="nm">${S.username ? "@" + esc(S.username) : "No username yet"}</div><small style="color:var(--dim)">${S.username ? "Tell friends this username so they can add you!" : "Pick a username so friends can find you."}</small></div></div>`;
+  h += `<div class="row"><input type="text" id="userIn" maxlength="14" placeholder="${S.username ? "change username" : "pick a username"}" aria-label="Username" autocomplete="off" style="text-transform:lowercase"><button class="primary" data-act="setUsername">${S.username ? "Change" : "Save username"}</button></div>`;
+  if (!isGoogle()) h += `<p class="sub" style="margin-top:8px">💡 Tip: <button class="small gold" data-act="googleIn">🔐 Save with Google</button> so your friends and progress follow you to any device.</p>`;
+  h += `<div class="sec">➕ ADD A FRIEND</div><div class="row"><input type="text" id="friendIn" maxlength="15" placeholder="their username" aria-label="Friend's username" autocomplete="off" style="text-transform:lowercase"><button class="primary" data-act="addFriend">Send request</button></div>`;
+  if (FR.reqIn.length) h += `<div class="sec">📨 FRIEND REQUESTS</div>` + FR.reqIn.map(r => `<div class="quest"><span class="ic">👋</span><div class="body"><b>${esc(r.fromName || "Someone")}</b><br><small>wants to be your friend</small></div><button class="primary small" data-act="acceptFriend" data-arg="${esc(r.id)}">✅ Accept</button><button class="small" data-act="declineFriend" data-arg="${esc(r.id)}">✕</button></div>`).join("");
+  const pend = FR.reqOut.filter(r => r.status === "pending"); if (pend.length) h += `<p class="sub">⏳ Waiting for ${pend.length} friend request${pend.length > 1 ? "s" : ""} to be accepted…</p>`;
+  h += `<div class="sec">👥 MY FRIENDS <span>${FR.list.length}</span></div>`;
+  if (!FR.list.length) h += `<p class="sub">No friends yet — add one with their username!</p>`;
+  const nowMin = Math.floor(Date.now() / 60000);
+  FR.list.forEach(uid => { const f = friendInfo(uid), online = f.seen && nowMin - f.seen <= 3;
+    h += `<div class="quest"><span class="ic" style="font-size:28px">${esc(f.av || "👩‍🚀")}</span><div class="body"><b>${esc(f.name || "Friend")}</b> <small style="color:var(--dim)">${f.user ? "@" + esc(f.user) : ""}</small><br><small>${online ? "🟢 Playing now" : "⚪ Offline"} · Lv ${f.lvl || 1} · ⭐ ${f.stars || 0} stars · 🟢 ${f.goo || 0} goo</small></div><button class="primary small" data-act="friendChat" data-arg="${esc(uid)}">💬 Chat</button><button class="small" data-act="friendRace" data-arg="${esc(uid)}">🏁 Challenge</button></div>`; });
+  panel("👥 Friends", h, renderFriends);
+}
 function renderLeaderboard(){
   const tab = LB.tab;
   let h = `<div class="row" style="margin-bottom:10px">${LB_TABS.map(t => `<button class="small ${t.id === tab ? "gold" : ""}" data-act="lbTab" data-arg="${t.id}">${t.icon} ${t.name}</button>`).join("")}</div>`;
@@ -2348,10 +2446,11 @@ function renderHome(){
   const m = todayMod(), b = badges(), bud = buddyInfo(), doneToday = S.lastDaily === today();
   const beaten = LEVELS.filter((l,i) => (S.stars[i] || 0) > 0).length, titanPct = Math.round(100*S.titan.dmg/TITAN_MAX);
   $("homeCard").innerHTML = `
-    <h1>Splash <span>Jet</span></h1>
+    <h1>Blast <span>Jet</span></h1>
     <div class="who"><span class="av">${bud ? bud.p.e : "👩‍🚀"}</span><div style="flex:1">
       <div class="nm">${esc(S.name)} <span style="font-size:13px;color:var(--dim)">· ${rk[2]} ${rk[1]} · Lv ${L}</span></div>
-      <div class="tt">${esc(S.title || "Space Cleaner")}</div><div class="xpbar"><i style="width:${pct}%"></i></div></div></div>
+      <div class="tt">${esc(S.title || "Space Cleaner")}${S.username ? ` · <span style="color:var(--water)">@${esc(S.username)}</span>` : ""}</div><div class="xpbar"><i style="width:${pct}%"></i></div></div>
+      ${isGoogle() ? `<span title="${esc(FB.user.email || "")}" style="font-size:12px;color:#8dff5a;text-align:right">☁️ Saved<br>to Google</span>` : `<button class="small gold" data-act="googleIn" title="Save your progress with your Gmail">🔐 Save with<br>Google</button>`}</div>
     <div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">🔥 ${S.streak}</span><span class="pill">🐾 ${Object.keys(S.pals).length}/${PALS.length}</span></div>
     <div class="note" style="margin:0 0 10px;background:linear-gradient(90deg,#3a2e10,#1a2150);border:1px solid #ffd16666;border-radius:12px;padding:8px 12px">🎪 This week: ${weekEvent().icon} <b>${weekEvent().name}</b> — ${weekEvent().desc}</div>
     <div class="play">
@@ -2375,6 +2474,7 @@ function renderHome(){
       <button class="tile" data-act="farmPanel" style="border-color:#8dff5a;background:linear-gradient(135deg,#1a3a1a,#2a1d10)">${bdg(farmReadyCount())}<span class="ic">🌾</span><b>Space Farm</b><small>${farmReadyCount() ? farmReadyCount() + " ready to harvest!" : "Grow crops for gems"}</small></button>
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
+      <button class="tile" data-act="friendsPanel" style="border-color:#8dff5a">${bdg(FR.reqIn.length)}<span class="ic">👥</span><b>Friends</b><small>${FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"}</small></button>
       <button class="tile" data-act="chatPanel" style="border-color:#5cc8ff">${bdg(CHAT.unread)}<span class="ic">💬</span><b>Friends Chat</b><small>${CHAT.unread ? CHAT.unread + " new!" : CHAT.room ? "Room " + CHAT.room : "Talk with friends"}</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
       <button class="tile" data-act="shopPanel"><span class="ic">🛍️</span><b>Shop</b><small>Suits · hats · water</small></button>
@@ -2484,7 +2584,8 @@ function renderProfile(){
   const L = playerLevel(), rk = rankOf(L);
   const titles = ["Space Cleaner", rk[1] + " Cadet"].concat(SETS.filter(s => S.setClaimed.includes(s.id)).map(s => s.title));
   if (S.stats.bosses) titles.push("Goo King Slayer"); if (S.stats.titanWins) titles.push("Titan Tamer"); if (S.awards.includes("shiny")) titles.push("Shiny Hunter");
-  let h = `<div class="row" style="margin-bottom:12px"><input type="text" id="nameIn" maxlength="14" value="${esc(S.name)}" aria-label="Your name"><button class="primary" data-act="saveName">Save name</button></div>`;
+  let h = `<div class="sec" style="margin-top:0">☁️ SAVE YOUR PROGRESS</div><div class="row" style="margin-bottom:12px">${isGoogle() ? `<span class="pill">☁️ Saved to ${esc(FB.user.email || "Google")}</span><button class="small" data-act="googleOut">Sign out</button>` : `<button class="gold" data-act="googleIn">🔐 Save with Google (Gmail)</button><small style="color:var(--dim);flex-basis:100%">Sign in with your Gmail so your score, pals and friends are saved and work on any device.</small>`}</div>
+  <div class="row" style="margin-bottom:12px"><input type="text" id="nameIn" maxlength="14" value="${esc(S.name)}" aria-label="Your name"><button class="primary" data-act="saveName">Save name</button></div>`;
   h += `<div class="sec">TITLE</div><div class="row">${titles.map(t => `<button class="small ${(S.title || "Space Cleaner") === t ? "gold" : ""}" data-act="setTitle" data-arg="${esc(t)}">${esc(t)}</button>`).join("")}</div>`;
   h += `<div class="sec">QUESTION GRADE <span>for crystals &amp; Brain Bubbles</span></div><div class="row">${[1,2,3,4,5,6,7,8].map(g => `<button class="small ${S.grade === g ? "gold" : ""}" data-act="setGrade" data-arg="${g}">Grade ${g}</button>`).join("")}</div>
     <div class="row" style="margin-top:8px"><button class="small ${S.quizOn ? "gold" : ""}" data-act="toggleQuiz">❓ Question crystals in levels: ${S.quizOn ? "ON" : "OFF"}</button></div>
@@ -2669,6 +2770,16 @@ function rain(n, best){
 const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
+  friendsPanel: () => renderFriends(),
+  googleIn: () => googleSignIn(), googleOut: () => googleSignOut(),
+  useCloud: () => { const c = FB.choice; if (!c) return; store(SAVE_KEY, c.save); location.reload(); },
+  useLocal: async () => { await cloudSaveNow(); syncLB(); chatConnect(); friendsConnect(); toast("☁️ This device's progress is now saved to Google"); goHome(); },
+  setUsername: async () => { const err = await claimUsername($("userIn").value); if (err){ note(err); sfx.fail(); } else { sfx.win(); renderFriends(); toast("🪪 Your username is @" + S.username); } },
+  addFriend: async () => { const r = await sendFriendRequest($("friendIn").value); if (r === "ok"){ $("friendIn").value = ""; note("📨 Friend request sent!"); sfx.coin(); } else { note(r); sfx.fail(); } },
+  acceptFriend: async id => { const r = FR.reqIn.find(x => x.id === id); if (!r) return; try { await addFriendLocal(r.from); await FB.fdb.collection("splashReq").doc(id).update({ status:"accepted" }); sfx.win(); toast("🎉 You're now friends with " + (r.fromName || "them") + "!"); } catch(e){ note("Couldn't accept — try again."); } },
+  declineFriend: async id => { try { await FB.fdb.collection("splashReq").doc(id).update({ status:"declined" }); } catch(e){} },
+  friendChat: uid => { const c = pairRoom(LB.uid, uid); S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); },
+  friendRace: async uid => { if (!lastRaceCode){ note("Finish a Rocket Race first, then send your ghost to a friend!"); return; } const c = pairRoom(LB.uid, uid); S.chatRoom = c; save(); chatConnect(); if (await chatPost(lastRaceCode, true)) toast("🏁 Race challenge sent to your friend's chat!"); renderChat(); },
   racesPanel: () => renderRaces(), raceGo: id => startRace(id),
   raceChallenge: () => { const c = parseRaceCode($("raceCodeIn").value); if (!c || !resolveRace(c.spec)){ note("Hmm, that race code doesn't work. Make sure you copied all of it."); sfx.fail(); return; } startRace(c.spec, c.ghost); RC.ghostId = c.id; },
   basePanel: () => { baseSel = null; renderBase(); },
@@ -2988,7 +3099,7 @@ function finish(clean){
       if (S.lastDaily !== today()){ S.streak = S.lastDaily === yesterday() ? S.streak + 1 : 1; S.lastDaily = today(); S.shards++; runGems += 50; notes.push("✨ Star shard + 50 💎 · 🔥 " + S.streak + " day streak"); }
       if (Math.random() < 0.5) pendingRewards.push([{ egg:1 }, "🥚 Bonus egg drop!"]);
     }
-    const lastResult = `💦 Splash Jet — Daily Outpost #${dayNumber()} ${mod.icon}\n${clean ? "★".repeat(st) + "☆".repeat(3-st) : "⏱"} ${score} pts · goo ${cleaned}/${total}`;
+    const lastResult = `💦 Blast Jet — Daily Outpost #${dayNumber()} ${mod.icon}\n${clean ? "★".repeat(st) + "☆".repeat(3-st) : "⏱"} ${score} pts · goo ${cleaned}/${total}`;
     addBtn("Play again", startDaily, true);
     const sb = addBtn("Copy result", async () => { try { await navigator.clipboard.writeText(lastResult); sb.textContent = "Copied!"; } catch(e){ $("doneNote").innerHTML += "<br>" + esc(lastResult.replace("\n"," · ")); } });
     addBtn("Home", goHome);
