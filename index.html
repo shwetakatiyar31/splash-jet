@@ -492,7 +492,7 @@ function tone(f1, f2, dur, wave, vol, delay){
   } catch(e){}
 }
 const sfx = {
-  blast: () => tone(320 + Math.random()*60, 120, 0.07, "triangle", 0.04),
+  blast: () => { tone(900 + Math.random()*80, 260, 0.06, "square", 0.022); tone(1800, 900, 0.035, "sine", 0.018); },
   gem: () => { tone(988, 1976, 0.1, "sine", 0.1); tone(1319, 2637, 0.1, "sine", 0.06, 0.06); },
   pop: () => tone(420, 1200, 0.14, "square", 0.05),
   splat: () => tone(260, 180, 0.05, "sine", 0.05),
@@ -584,10 +584,10 @@ function genBoss(titan, queen, magma){
   for (let k=0;k<14;k++) items.push({ type:"gem", x: 120 + k*100, y: 160 + Math.sin(k)*40, bob:k });
   items.push({ type:"bubble", x:360, y:220, bob:0 }, { type:"bubble", x:1130, y:220, bob:1 }, { type:"bubble", x:820, y:330, bob:2 });
   items.push({ type:"power", p:"rainbow", x:520, y:380, bob:0 }, { type:"power", p:"turbo", x:1350, y:360, bob:1 });
-  if (titan){ const hp = Math.max(1, TITAN_MAX - S.titan.dmg); boss = { titan:true, x:1000, y:200, r:105, hp, max:TITAN_MAX, t:0, spit:2.5, flash:0, talk:"I am the MEGA GOO TITAN!", talkT:2.5 }; titanStartHp = hp; }
-  else if (magma) boss = { magma:true, x:1000, y:200, r:95, hp:100, max:100, t:0, spit:2.3, flash:0, talk:"HOT HOT HOT! Nobody cools ME down!", talkT:2.5 };
-  else if (queen) boss = { queen:true, x:1000, y:200, r:90, hp:80, max:80, t:0, spit:2.6, flash:0, talk:"Brrr! Nobody melts MY palace!", talkT:2.5 };
-  else boss = { x:1000, y:200, r:82, hp:60, max:60, t:0, spit:3, flash:0, talk:"", talkT:0 };
+  if (titan){ const hp = Math.max(1, TITAN_MAX - S.titan.dmg); boss = { titan:true, x:1000, y:200, r:105, hp, max:TITAN_MAX, t:0, spit:2.5, flash:0, talk:"So you're the one they sent.", talkT:2.5 }; titanStartHp = hp; }
+  else if (magma) boss = { magma:true, x:1000, y:200, r:95, hp:100, max:100, t:0, spit:2.3, flash:0, talk:"Turn back while you still can.", talkT:2.5 };
+  else if (queen) boss = { queen:true, x:1000, y:200, r:90, hp:80, max:80, t:0, spit:2.6, flash:0, talk:"You shouldn't have come here.", talkT:2.5 };
+  else boss = { x:1000, y:200, r:82, hp:60, max:60, t:0, spit:3, flash:0, talk:"This outpost belongs to me.", talkT:2.5 };
   makeStars(titan ? 99 : 7);
 }
 
@@ -753,7 +753,7 @@ function blast(){
   else if (ay > 0.35){ P.vy -= ay * IMPULSE * 0.95 * k0; P.ground = null; }
   const sp = Math.hypot(P.vx, P.vy); if (sp > MAXV){ P.vx *= MAXV/sp; P.vy *= MAXV/sp; }
   const nd = pw.rainbow ? 5 : 3, spread = pw.rainbow ? 0.11 : 0.07;
-  for (let k=0;k<nd;k++){ const a = P.aim + (k-(nd-1)/2)*spread; drops.push({ x:P.x + ax*22, y:P.y + ay*22, vx:Math.cos(a)*DROP_V*(0.9+(k%3)*0.07), vy:Math.sin(a)*DROP_V*(0.9+(k%3)*0.07), l:1.1, i:shots*5+k, rb: !!pw.rainbow }); }
+  for (let k=0;k<nd;k++){ const a = P.aim + (k-(nd-1)/2)*spread; drops.push({ x:P.x + ax*36, y:P.y + ay*36, vx:Math.cos(a)*DROP_V*(0.9+(k%3)*0.07), vy:Math.sin(a)*DROP_V*(0.9+(k%3)*0.07), l:1.1, i:shots*5+k, rb: !!pw.rainbow }); }
   sfx.blast();
 }
 function gooHit(g){
@@ -885,7 +885,7 @@ function update(dt){
       boss.hp = Math.max(0, boss.hp - dmg); boss.flash = 0.12; burst(d.x, d.y, waterColor(d.i), 4, 160); track("bosshits", 1);
       if (boss.hp % 6 === 0) sfx.splat();
       if (boss.hp <= 0) bossDefeated();
-      else if (!boss.half && boss.hp <= boss.max/2){ boss.half = true; boss.talk = boss.titan ? "NOOO! I'm half gone!" : "Blub! You're making me SHRINK!"; boss.talkT = 2.5; }
+      else if (!boss.half && boss.hp <= boss.max/2){ boss.half = true; boss.talk = boss.titan ? "Not bad. Not good enough." : boss.queen ? "You're stronger than I thought." : boss.magma ? "Enough games." : "Impossible… how are you doing this?"; boss.talkT = 2.5; }
       continue;
     }
     for (const p of plats) if (d.x > p.x && d.x < p.x + p.w && d.y > p.y && d.y < p.y + p.h){ d.l = 0; burst(d.x, d.y, waterColor(d.i), 3, 120); break; }
@@ -915,7 +915,7 @@ function updateBoss(dt){
     boss.spit = boss.titan ? (angry ? 2 : 2.6) : (angry ? 2.6 : 3.6);
     const n = boss.titan ? (angry ? 4 : 3) : (angry ? 3 : 2);
     for (let k=0;k<n;k++) balls.push({ x:boss.x, y:boss.y + 20, vx:(Math.random()-.5)*520, vy:-150 - Math.random()*200, l:6 });
-    if (Math.random() < 0.5){ boss.talk = pick(boss.magma ? ["Sizzle sizzle!","Too hot to handle!","Lava goo party!","Feel the heat!"] : boss.queen ? ["Freeze!","Snow goo for everyone!","Ice to meet you!","Chill out!"] : boss.titan ? ["GLOOOORP!","The whole galaxy will be GOO!","You'll never clean me!","MEGA BLOOP!"] : ["Bloop! More goo!","Mine! All mine!","You can't clean ME!","Gloop gloop!"]); boss.talkT = 1.8; }
+    if (Math.random() < 0.5){ boss.talk = pick(boss.magma ? ["You can't put out a volcano.","The heat is only rising.","I'm just getting started.","Nothing survives the core."] : boss.queen ? ["Feel the cold.","You'll freeze before you reach me.","My palace. My rules.","Nothing lasts in the cold."] : boss.titan ? ["Every week I come back stronger.","Bring your friends. It won't help.","You can't stop what's coming.","I always come back."] : ["Is that all you've got?","You're out of your league.","Keep spraying. It won't matter.","I've beaten bigger heroes."]); boss.talkT = 1.8; }
   }
   for (const b of balls){
     b.vy += grav()*0.8*dt; b.x += b.vx*dt; b.y += b.vy*dt; b.l -= dt;
@@ -932,7 +932,7 @@ function updateBoss(dt){
   balls = balls.filter(b => b.l > 0);
 }
 function bossDefeated(){
-  boss.hp = 0; boss.talk = boss.titan ? "Fine! I'll go be a tiny goo somewhere..." : boss.queen ? "I'm... melting... into a cute snowflake!" : boss.magma ? "Ahh... so cool... I feel all better now!" : "Okay okay! I'll be a nice little goo!"; boss.talkT = 3;
+  boss.hp = 0; boss.talk = boss.titan ? "Next week… I'll be ready for you." : boss.queen ? "…The ice will remember this." : boss.magma ? "You… actually did it." : "This isn't over."; boss.talkT = 3;
   balls = [];
   for (const g of goos) if (g.hp > 0){ g.hp = 0; burst(g.p.x + g.off + g.w/2, g.p.y - 8, "#8dff5a", 14); }
   for (let k=0;k<5;k++) burst(boss.x, boss.y, ["#8dff5a","#ffd166","#5cc8ff"][k%3], 20, 400);
@@ -1195,12 +1195,12 @@ function renderLeaderboard(){
 
 // ================= monster battle =================
 const MONSTERS = {
-  blobby: { name:"Gloop Slime",     hp:4,  r:18, c:"#9b6bff", kind:"walk",   sp:70,  gem:2,  desc:"A wobbly purple slime that oozes toward you" },
-  zappy:  { name:"Bramble Bat",     hp:3,  r:15, c:"#7a4fd8", kind:"fly",    sp:85,  gem:2,  desc:"Swoops in thorny loops" },
-  boing:  { name:"Grumpy Mushroom", hp:5,  r:18, c:"#e8453c", kind:"bounce", sp:105, gem:3,  desc:"Bounces around and grumbles" },
-  chomp:  { name:"Truffle Boar",    hp:8,  r:22, c:"#8a5a3a", kind:"charge", sp:55,  gem:4,  desc:"Snorts… then CHARGES! Jump over it!" },
-  spitz:  { name:"Moss Ogre",       hp:10, r:25, c:"#5a9a3a", kind:"spit",   sp:30,  gem:5,  desc:"Throws mossy goo balls" },
-  giant:  { name:"Rock Golem",      hp:60, r:56, c:"#8d93a8", kind:"giant",  sp:36,  gem:30, desc:"The big final-wave boss!" },
+  blobby: { name:"Void Slug",     hp:4,  r:18, c:"#1fb5a5", kind:"walk",   sp:70,  gem:2,  desc:"Slimy space slug with glowing spots" },
+  zappy:  { name:"Stinger Drone", hp:3,  r:15, c:"#e0484a", kind:"fly",    sp:90,  gem:2,  desc:"Robot wasp that zips in tight loops" },
+  boing:  { name:"Spring Crab",   hp:5,  r:18, c:"#ff8a3d", kind:"bounce", sp:105, gem:3,  desc:"Armoured crab that pogo-bounces on its legs" },
+  chomp:  { name:"Horn Beetle",   hp:8,  r:22, c:"#3f6bd8", kind:"charge", sp:55,  gem:4,  desc:"Lowers its horn… then CHARGES! Jump over it" },
+  spitz:  { name:"Acid Lizard",   hp:10, r:24, c:"#7ac943", kind:"spit",   sp:30,  gem:5,  desc:"Lobs balls of glowing acid" },
+  giant:  { name:"Core Mech",     hp:60, r:56, c:"#6c7591", kind:"giant",  sp:36,  gem:30, desc:"Giant battle robot — the final-wave boss" },
 };
 const BATTLES = [
   { name:"Rookie Battle", icon:"🛡️", waves:5, hearts:5, pool:["blobby","zappy","boing"], giantHp:30, hue:120, color:"#8dff5a" },
@@ -1330,7 +1330,7 @@ function updateBattle(dt){
 }
 function drawBattle(cx){
   const B = BT;
-  for (const b of B.mballs){ ctx.fillStyle = "#ff8fd0"; ctx.beginPath(); ctx.arc(b.x - cx, b.y, 8, 0, 7); ctx.fill(); ctx.fillStyle = "#ffd1ec"; ctx.beginPath(); ctx.arc(b.x - cx - 2, b.y - 2, 2.5, 0, 7); ctx.fill(); }
+  for (const b of B.mballs){ ctx.fillStyle = "#b6ff3a"; ctx.beginPath(); ctx.arc(b.x - cx, b.y, 8, 0, 7); ctx.fill(); ctx.fillStyle = "#ffd1ec"; ctx.beginPath(); ctx.arc(b.x - cx - 2, b.y - 2, 2.5, 0, 7); ctx.fill(); }
   for (const m of B.monsters){
     const d = MONSTERS[m.type], x = m.x - cx, y = m.y, r = m.r;
     if (x < -100 || x > W + 100) continue;
@@ -1349,66 +1349,69 @@ function drawBattle(cx){
 function drawMonsterArt(m, d, r){
   const fl = m.flash > 0, body = fl ? "#ffffff" : d.c, face = Math.sign(P.x - m.x) || 1;
   const lx = clamp((P.x - m.x)/200, -1, 1)*r*0.07, ly = clamp((P.y - m.y)/200, -1, 1)*r*0.07;
-  const eyes = (ex, ey, er, angry, col) => {
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-ex, ey, er, 0, 7); ctx.arc(ex, ey, er, 0, 7); ctx.fill();
-    ctx.fillStyle = col || "#1a1030"; ctx.beginPath(); ctx.arc(-ex + lx, ey + ly, er*0.52, 0, 7); ctx.arc(ex + lx, ey + ly, er*0.52, 0, 7); ctx.fill();
-    if (angry){ ctx.strokeStyle = "#1a1030"; ctx.lineWidth = Math.max(2, r*0.08); ctx.beginPath(); ctx.moveTo(-ex - er, ey - er*1.3); ctx.lineTo(-ex + er*0.8, ey - er*0.7); ctx.moveTo(ex + er, ey - er*1.3); ctx.lineTo(ex - er*0.8, ey - er*0.7); ctx.stroke(); }
-  };
+  const glowEye = (x, y, rad, col) => { ctx.save(); ctx.shadowColor = col; ctx.shadowBlur = 10; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x + lx*0.6, y + ly*0.6, rad, 0, 7); ctx.fill(); ctx.restore(); };
   const sq = m.ground ? 1 + Math.sin(m.t*10)*0.06 : 1;
-  if (m.type === "blobby"){ // Gloop Slime
-    ctx.fillStyle = body; ctx.beginPath(); for (let i=0;i<=22;i++){ const a = i/22*Math.PI*2, w = 1 + 0.08*Math.sin(m.t*6 + i*1.9); const yy = Math.sin(a) > 0 ? Math.sin(a)*r*0.75 : Math.sin(a)*r*1.05; ctx.lineTo(Math.cos(a)*r*1.1*w*sq, yy*w/sq); } ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(-2, -r*1.0); ctx.quadraticCurveTo(r*0.25, -r*1.45 - Math.sin(m.t*4)*3, 4, -r*1.0); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#c9b0ff"; ctx.beginPath(); ctx.ellipse(-r*0.45, -r*0.5, r*0.16, r*0.24, -0.4, 0, 7); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#7a4fd8"; for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.ellipse(k*r*0.5, r*0.72 + Math.sin(m.t*5 + k)*2, r*0.1, r*0.18, 0, 0, 7); ctx.fill(); }
-    eyes(r*0.32, -r*0.15, r*0.24, false);
-    ctx.fillStyle = "#3a1a6a"; ctx.beginPath(); ctx.arc(0, r*0.22, r*0.22, 0.15, Math.PI - 0.15); ctx.fill(); ctx.fillStyle = "#ff8fd0"; ctx.beginPath(); ctx.arc(0, r*0.34, r*0.09, 0, Math.PI); ctx.fill();
-  } else if (m.type === "boing"){ // Grumpy Mushroom
-    const s2 = m.ground ? 1.15 : 0.92;
-    ctx.fillStyle = fl ? "#fff" : "#f3e4c8"; rr(-r*0.55, -r*0.15, r*1.1, r*1.05*s2, r*0.35); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#6a4a2a"; ctx.beginPath(); ctx.ellipse(-r*0.32, r*0.9*s2, r*0.2, r*0.1, 0, 0, 7); ctx.ellipse(r*0.32, r*0.9*s2, r*0.2, r*0.1, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, -r*0.12, r*1.15, r*0.95, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#fff"; [[-0.55,-0.5,0.18],[0.15,-0.78,0.15],[0.62,-0.42,0.14],[-0.12,-0.35,0.1]].forEach(([a,b,c]) => { ctx.beginPath(); ctx.arc(a*r, b*r, c*r, 0, 7); ctx.fill(); });
-    eyes(r*0.22, r*0.18, r*0.14, true);
-    ctx.strokeStyle = "#3a2210"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, r*0.62, r*0.16, Math.PI + 0.3, -0.3); ctx.stroke();
-  } else if (m.type === "zappy"){ // Bramble Bat
-    const f = Math.sin(m.t*20);
-    ctx.fillStyle = fl ? "#fff" : "#4a2a8a";
-    for (const sd of [-1, 1]){ ctx.beginPath(); ctx.moveTo(sd*r*0.6, -r*0.2); ctx.lineTo(sd*r*1.9, -r*0.7 - f*12); ctx.lineTo(sd*r*1.6, -r*0.1); ctx.lineTo(sd*r*1.75, r*0.25 - f*6); ctx.lineTo(sd*r*1.25, r*0.15); ctx.lineTo(sd*r*1.2, r*0.5 - f*4); ctx.lineTo(sd*r*0.6, r*0.25); ctx.closePath(); ctx.fill(); }
-    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-r*0.7, -r*0.5); ctx.lineTo(-r*0.45, -r*1.25); ctx.lineTo(-r*0.15, -r*0.7); ctx.lineTo(r*0.15, -r*0.7); ctx.lineTo(r*0.45, -r*1.25); ctx.lineTo(r*0.7, -r*0.5); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
-    ctx.strokeStyle = fl ? "#fff" : "#3a6a2a"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -r*0.15, r*0.95, Math.PI*1.15, Math.PI*1.85); ctx.stroke();
-    ctx.fillStyle = fl ? "#fff" : "#6aaa3a"; for (let k=0;k<5;k++){ const a = Math.PI*1.2 + k*0.15*Math.PI, px = Math.cos(a)*r*0.95, py = -r*0.15 + Math.sin(a)*r*0.95; ctx.beginPath(); ctx.moveTo(px - 3, py); ctx.lineTo(px + Math.cos(a)*6, py + Math.sin(a)*6); ctx.lineTo(px + 3, py); ctx.fill(); }
-    eyes(r*0.34, -r*0.05, r*0.24, true, "#ff3a6a");
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-r*0.2, r*0.35); ctx.lineTo(-r*0.1, r*0.6); ctx.lineTo(0, r*0.35); ctx.moveTo(0, r*0.35); ctx.lineTo(r*0.1, r*0.6); ctx.lineTo(r*0.2, r*0.35); ctx.fill();
-  } else if (m.type === "chomp"){ // Truffle Boar
-    ctx.save(); ctx.scale(face, 1); if (m.st === "wind") ctx.translate(Math.sin(m.t*60)*2, 0);
-    ctx.fillStyle = fl ? "#fff" : "#5a3a24"; for (const lx2 of [-0.7, -0.35, 0.3, 0.65]){ rr(lx2*r - 4, r*0.45, 8, r*0.5 + (m.st === "run" ? Math.sin(m.t*30 + lx2*5)*3 : 0), 3); ctx.fill(); }
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r*0.1, 0, r*1.15, r*0.78, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#6a4430"; for (let k=0;k<5;k++){ ctx.beginPath(); ctx.moveTo(-r*0.9 + k*r*0.3, -r*0.7); ctx.lineTo(-r*0.8 + k*r*0.3, -r*0.98); ctx.lineTo(-r*0.7 + k*r*0.3, -r*0.68); ctx.fill(); }
-    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(r*0.35, -r*0.55); ctx.lineTo(r*0.5, -r*1.05); ctx.lineTo(r*0.72, -r*0.5); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#f2a0a8"; ctx.beginPath(); ctx.ellipse(r*1.05, r*0.12, r*0.3, r*0.24, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = "#5a2a30"; ctx.beginPath(); ctx.arc(r*0.98, r*0.1, r*0.06, 0, 7); ctx.arc(r*1.13, r*0.1, r*0.06, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#fffbe8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(r*0.85, r*0.32); ctx.quadraticCurveTo(r*0.95, r*0.05, r*0.75, -r*0.05); ctx.stroke();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(r*0.62, -r*0.25, r*0.17, 0, 7); ctx.fill(); ctx.fillStyle = m.st === "wind" || m.st === "run" ? "#ff3a3a" : "#1a1030"; ctx.beginPath(); ctx.arc(r*0.66, -r*0.24, r*0.09, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#1a1030"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(r*0.45, -r*0.48); ctx.lineTo(r*0.8, -r*0.36); ctx.stroke();
+  if (m.type === "blobby"){ // Void Slug
+    ctx.save(); ctx.scale(face, 1);
+    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-r*1.2, r*0.75); ctx.quadraticCurveTo(-r*1.25, -r*0.1, -r*0.4, -r*0.55*sq); ctx.quadraticCurveTo(r*0.4, -r*1.05*sq, r*0.95, -r*0.35); ctx.quadraticCurveTo(r*1.25, r*0.2, r*1.0, r*0.75); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#127a70"; ctx.fillRect(-r*1.15, r*0.62, r*2.15, r*0.14);
+    ctx.save(); ctx.shadowColor = "#7dfff0"; ctx.shadowBlur = 8; ctx.fillStyle = "#7dfff0"; [[-0.6,0.1,0.11],[-0.15,-0.25,0.09],[0.2,0.25,0.1],[-0.85,0.45,0.07]].forEach(([a,b,c]) => { ctx.beginPath(); ctx.arc(a*r, b*r, c*r, 0, 7); ctx.fill(); }); ctx.restore();
+    ctx.strokeStyle = fl ? "#fff" : "#0c5a52"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(r*0.55, -r*0.55); ctx.lineTo(r*0.75, -r*1.1); ctx.moveTo(r*0.85, -r*0.4); ctx.lineTo(r*1.15, -r*0.85); ctx.stroke();
+    glowEye(r*0.75, -r*1.12, r*0.12, "#eaffd0"); glowEye(r*1.15, -r*0.88, r*0.12, "#eaffd0");
+    ctx.fillStyle = "#06302c"; ctx.beginPath(); ctx.ellipse(r*0.75, r*0.2, r*0.16, r*0.07, 0.3, 0, 7); ctx.fill();
     ctx.restore();
-    if (m.st === "wind"){ ctx.font = "900 18px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ff6b3a"; ctx.fillText("!", 0, -r - 6); ctx.textAlign = "left"; }
-  } else if (m.type === "spitz"){ // Moss Ogre
-    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r*1.0, r*0.15, r*0.28, r*0.45, 0.3, 0, 7); ctx.ellipse(r*1.0, r*0.15, r*0.28, r*0.45, -0.3, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(0, 0, r*0.95*sq, r*1.0/sq, 0, 0, 7); ctx.fill();
-    ctx.fillStyle = fl ? "#fff" : "#3f7a2a"; [[-0.45,-0.5,0.2],[0.4,0.35,0.24],[-0.35,0.55,0.16],[0.55,-0.2,0.13]].forEach(([a,b,c]) => { ctx.beginPath(); ctx.arc(a*r, b*r, c*r, 0, 7); ctx.fill(); });
-    ctx.fillStyle = fl ? "#fff" : "#8dff5a"; for (let k=-2;k<=2;k++){ ctx.beginPath(); ctx.ellipse(k*r*0.22, -r*0.95 - Math.abs(Math.sin(m.t*3 + k))*3, r*0.12, r*0.2, k*0.3, 0, 7); ctx.fill(); }
-    ctx.fillStyle = fl ? "#fff" : "#2f5a1f"; rr(-r*0.6, -r*0.45, r*1.2, r*0.16, 4); ctx.fill();
-    eyes(r*0.28, -r*0.18, r*0.15, false);
-    ctx.fillStyle = "#1a3a10"; ctx.beginPath(); ctx.ellipse(0, r*0.38, r*0.38, r*0.16, 0, 0, Math.PI); ctx.fill();
-    ctx.fillStyle = "#fffbe8"; ctx.beginPath(); ctx.moveTo(-r*0.28, r*0.4); ctx.lineTo(-r*0.2, r*0.18); ctx.lineTo(-r*0.12, r*0.4); ctx.moveTo(r*0.12, r*0.4); ctx.lineTo(r*0.2, r*0.18); ctx.lineTo(r*0.28, r*0.4); ctx.fill();
-  } else { // Rock Golem (giant)
-    ctx.fillStyle = fl ? "#fff" : "#6d7286"; ctx.beginPath(); ctx.ellipse(-r*0.95, r*0.2 + Math.sin(m.t*3)*4, r*0.32, r*0.42, 0.2, 0, 7); ctx.ellipse(r*0.95, r*0.2 - Math.sin(m.t*3)*4, r*0.32, r*0.42, -0.2, 0, 7); ctx.fill();
-    ctx.fillStyle = body; ctx.beginPath(); const pts = [[-0.8,-0.75],[-0.3,-1.0],[0.35,-0.95],[0.85,-0.6],[0.95,0.2],[0.7,0.85],[0,1.0],[-0.7,0.85],[-0.98,0.15]]; pts.forEach(([a,b], k) => k ? ctx.lineTo(a*r, b*r) : ctx.moveTo(a*r, b*r)); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = fl ? "#fff" : "#4a4f62"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-r*0.3, -r*0.9); ctx.lineTo(-r*0.15, -r*0.55); ctx.lineTo(-r*0.35, -r*0.3); ctx.moveTo(r*0.5, r*0.3); ctx.lineTo(r*0.3, r*0.55); ctx.lineTo(r*0.45, r*0.8); ctx.stroke();
-    ctx.fillStyle = fl ? "#fff" : "#5a9a3a"; ctx.beginPath(); ctx.ellipse(r*0.3, -r*0.9, r*0.3, r*0.1, 0.2, 0, 7); ctx.ellipse(-r*0.75, r*0.6, r*0.18, r*0.08, -0.5, 0, 7); ctx.fill();
-    ctx.save(); ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 16; ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.ellipse(-r*0.3 + lx, -r*0.2 + ly, r*0.14, r*0.09, 0.2, 0, 7); ctx.ellipse(r*0.3 + lx, -r*0.2 + ly, r*0.14, r*0.09, -0.2, 0, 7); ctx.fill(); ctx.restore();
-    ctx.fillStyle = "#3a3f52"; rr(-r*0.35, r*0.25, r*0.7, r*0.18 + Math.abs(Math.sin(m.t*3))*r*0.08, 5); ctx.fill();
+  } else if (m.type === "zappy"){ // Stinger Drone
+    const f = Math.sin(m.t*40);
+    ctx.save(); ctx.scale(face, 1);
+    ctx.fillStyle = "rgba(200,230,255,.45)"; ctx.beginPath(); ctx.ellipse(-r*0.2, -r*0.95, r*0.9, r*0.32*(0.6 + 0.4*Math.abs(f)), -0.4, 0, 7); ctx.ellipse(r*0.35, -r*0.95, r*0.7, r*0.26*(0.6 + 0.4*Math.abs(f)), 0.4, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#2a2f40"; ctx.beginPath(); ctx.ellipse(-r*0.75, r*0.05, r*0.7, r*0.45, 0.15, 0, 7); ctx.fill();
+    ctx.fillStyle = body; for (let k=0;k<2;k++){ ctx.fillRect(-r*1.1 + k*r*0.42, -r*0.3, r*0.18, r*0.68); }
+    ctx.fillStyle = fl ? "#fff" : "#c9d1e6"; ctx.beginPath(); ctx.moveTo(-r*1.4, r*0.1); ctx.lineTo(-r*1.85, r*0.35); ctx.lineTo(-r*1.35, r*0.32); ctx.fill();
+    ctx.fillStyle = body; ctx.beginPath(); ctx.arc(r*0.35, 0, r*0.62, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#2a2f40"; ctx.beginPath(); ctx.arc(r*0.35, 0, r*0.62, -0.6, 0.9); ctx.lineTo(r*0.35, 0); ctx.fill();
+    glowEye(r*0.65, -r*0.08, r*0.2, "#ffe14a");
+    ctx.restore();
+  } else if (m.type === "boing"){ // Spring Crab
+    const lift = m.ground ? 0 : -r*0.15;
+    ctx.strokeStyle = fl ? "#fff" : "#a2521f"; ctx.lineWidth = 3;
+    for (const sd of [-1, 1]) for (let k=0;k<2;k++){ ctx.beginPath(); ctx.moveTo(sd*r*(0.45 + k*0.3), r*0.35 + lift); ctx.lineTo(sd*r*(0.85 + k*0.35), r*0.95 + Math.sin(m.t*12 + k)*3); ctx.stroke(); }
+    for (const sd of [-1, 1]){ ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(sd*r*1.2, -r*0.25 + lift, r*0.36, r*0.26, sd*0.5, 0, 7); ctx.fill(); ctx.fillStyle = fl ? "#fff" : "#a2521f"; ctx.beginPath(); ctx.moveTo(sd*r*1.15, -r*0.25 + lift); ctx.lineTo(sd*r*1.6, -r*0.5 + lift); ctx.lineTo(sd*r*1.45, -r*0.15 + lift); ctx.fill(); }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, lift, r*1.05, r*0.62*sq, 0, Math.PI, 0); ctx.lineTo(r*1.05, r*0.3 + lift); ctx.quadraticCurveTo(0, r*0.55 + lift, -r*1.05, r*0.3 + lift); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = fl ? "#fff" : "#c86a2a"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, lift + r*0.1, r*0.75, Math.PI*1.15, Math.PI*1.85); ctx.stroke();
+    ctx.strokeStyle = fl ? "#fff" : "#a2521f"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(-r*0.3, -r*0.5 + lift); ctx.lineTo(-r*0.4, -r*0.95 + lift); ctx.moveTo(r*0.3, -r*0.5 + lift); ctx.lineTo(r*0.4, -r*0.95 + lift); ctx.stroke();
+    glowEye(-r*0.4, -r*1.0 + lift, r*0.13, "#1a1a2a"); glowEye(r*0.4, -r*1.0 + lift, r*0.13, "#1a1a2a");
+  } else if (m.type === "chomp"){ // Horn Beetle
+    ctx.save(); ctx.scale(face, 1); if (m.st === "wind") ctx.translate(Math.sin(m.t*60)*2, 0);
+    ctx.strokeStyle = fl ? "#fff" : "#1b2340"; ctx.lineWidth = 3; for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*r*0.45, r*0.35); ctx.lineTo(k*r*0.55 - r*0.15, r*0.95 + (m.st === "run" ? Math.sin(m.t*30 + k*2)*4 : 0)); ctx.stroke(); }
+    const sh = ctx.createLinearGradient(0, -r, 0, r*0.5); sh.addColorStop(0, fl ? "#fff" : "#8fb0ff"); sh.addColorStop(0.5, body); sh.addColorStop(1, fl ? "#fff" : "#1b2a66");
+    ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(-r*0.15, 0, r*1.1, r*0.72, 0, 0, 7); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-r*0.15, -r*0.72); ctx.lineTo(-r*0.15, r*0.6); ctx.stroke();
+    ctx.fillStyle = fl ? "#fff" : "#1b2340"; ctx.beginPath(); ctx.ellipse(r*0.9, r*0.05, r*0.42, r*0.36, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#d8dde9"; ctx.beginPath(); ctx.moveTo(r*1.05, -r*0.15); ctx.quadraticCurveTo(r*1.55, -r*0.35, r*1.65, -r*1.0); ctx.quadraticCurveTo(r*1.35, -r*0.45, r*1.0, -r*0.32); ctx.closePath(); ctx.fill();
+    glowEye(r*1.05, r*0.02, r*0.1, m.st === "wind" || m.st === "run" ? "#ff4a3a" : "#ffe14a");
+    ctx.restore();
+    if (m.st === "wind"){ ctx.font = "900 18px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ff4a3a"; ctx.fillText("!", 0, -r - 6); ctx.textAlign = "left"; }
+  } else if (m.type === "spitz"){ // Acid Lizard
+    ctx.save(); ctx.scale(face, 1);
+    ctx.fillStyle = fl ? "#fff" : "#4f8a2c"; ctx.beginPath(); ctx.moveTo(-r*0.8, r*0.2); ctx.quadraticCurveTo(-r*1.6, r*0.1, -r*1.9, -r*0.4 + Math.sin(m.t*4)*4); ctx.quadraticCurveTo(-r*1.4, r*0.4, -r*0.7, r*0.55); ctx.fill();
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r*0.1, r*0.15, r*0.95, r*0.6*sq, 0, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(r*0.75, -r*0.3, r*0.55, r*0.42, -0.2, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#2f5a18"; for (let k=0;k<5;k++){ ctx.beginPath(); ctx.moveTo(-r*0.7 + k*r*0.3, -r*0.38); ctx.lineTo(-r*0.58 + k*r*0.3, -r*0.68); ctx.lineTo(-r*0.46 + k*r*0.3, -r*0.38); ctx.fill(); }
+    ctx.fillStyle = fl ? "#fff" : "#2f5a18"; ctx.fillRect(-r*0.6, r*0.6, r*0.22, r*0.35); ctx.fillRect(r*0.25, r*0.6, r*0.22, r*0.35);
+    ctx.save(); ctx.shadowColor = "#b6ff3a"; ctx.shadowBlur = 10; ctx.fillStyle = "#b6ff3a"; ctx.beginPath(); ctx.ellipse(r*1.05, -r*0.1, r*0.18, r*0.08, 0, 0, 7); ctx.fill(); ctx.restore();
+    glowEye(r*0.85, -r*0.5, r*0.12, "#ffb000");
+    ctx.restore();
+  } else { // Core Mech
+    const st = Math.sin(m.t*3)*4;
+    ctx.fillStyle = fl ? "#fff" : "#3a4058"; rr(-r*0.65, r*0.55, r*0.4, r*0.45 + st*0.3, 4); ctx.fill(); rr(r*0.25, r*0.55, r*0.4, r*0.45 - st*0.3, 4); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#4a5270"; rr(-r*1.35, -r*0.35 + st, r*0.42, r*0.95, 8); ctx.fill(); rr(r*0.93, -r*0.35 - st, r*0.42, r*0.95, 8); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#2a2f40"; ctx.fillRect(r*1.0, r*0.5 - st, r*0.28, r*0.3);
+    const bd = ctx.createLinearGradient(0, -r, 0, r*0.7); bd.addColorStop(0, fl ? "#fff" : "#a7b0cc"); bd.addColorStop(1, fl ? "#fff" : "#4a5270");
+    ctx.fillStyle = bd; rr(-r*0.95, -r*0.75, r*1.9, r*1.35, 12); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#2a2f40"; rr(-r*0.5, -r*1.15, r*1.0, r*0.5, 8); ctx.fill();
+    ctx.save(); ctx.shadowColor = "#4af0ff"; ctx.shadowBlur = 16; ctx.fillStyle = "#4af0ff"; rr(-r*0.38 + lx, -r*1.0 + ly, r*0.76, r*0.16, 4); ctx.fill(); ctx.restore();
+    const pulse = 0.6 + 0.4*Math.sin(m.t*5); ctx.save(); ctx.shadowColor = "#ff5a3a"; ctx.shadowBlur = 20*pulse; ctx.fillStyle = `rgba(255,${90 + 60*pulse},58,1)`; ctx.beginPath(); ctx.arc(0, -r*0.05, r*0.24, 0, 7); ctx.fill(); ctx.restore();
+    ctx.strokeStyle = "rgba(0,0,0,.3)"; ctx.lineWidth = 2; ctx.strokeRect(-r*0.75, r*0.25, r*1.5, r*0.2);
   }
 }
 function battleChest(tier){
@@ -2218,7 +2221,9 @@ function render(){
     ctx.font = "900 14px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.fillText(ring.n, rx, ry + 5); ctx.textAlign = "left";
     if (rx < 0 || rx > W){ const ax = rx < 0 ? 24 : W - 24; ctx.fillStyle = c; ctx.beginPath(); if (rx < 0){ ctx.moveTo(ax - 12, ry); ctx.lineTo(ax + 6, ry - 12); ctx.lineTo(ax + 6, ry + 12); } else { ctx.moveTo(ax + 12, ry); ctx.lineTo(ax - 6, ry - 12); ctx.lineTo(ax - 6, ry + 12); } ctx.fill(); }
   }
-  for (const d of drops){ ctx.fillStyle = waterColor(d.i, d.rb); ctx.beginPath(); ctx.arc(d.x - cx, d.y, 3.4, 0, 7); ctx.fill(); }
+  ctx.save(); ctx.lineCap = "round";
+  for (const d of drops){ const c = waterColor(d.i, d.rb), tx = d.x - cx - d.vx*0.022, ty = d.y - d.vy*0.022; ctx.strokeStyle = c; ctx.globalAlpha = 0.55; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(d.x - cx, d.y); ctx.stroke(); ctx.globalAlpha = 1; ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(d.x - cx - d.vx*0.011, d.y - d.vy*0.011); ctx.lineTo(d.x - cx, d.y); ctx.stroke(); }
+  ctx.restore();
 
   if (running && endT <= 0){
     const ax = Math.cos(P.aim), ay = Math.sin(P.aim);
@@ -2378,9 +2383,17 @@ function drawAstronaut(x, y){
   ctx.fillStyle = "#ffd166"; ctx.fillRect(-4, 6, 8, 3);
   drawHat();
   ctx.restore();
-  ctx.save(); ctx.translate(x, y); ctx.rotate(P.aim);
-  ctx.fillStyle = "#ffd166"; rr(4, -5, 22, 10, 4); ctx.fill();
-  ctx.fillStyle = waterColor(0); ctx.fillRect(22, -4, 6, 8);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(P.aim); if (Math.cos(P.aim) < 0) ctx.scale(1, -1);
+  ctx.fillStyle = "#1e2333"; rr(7, 2, 6, 9, 2); ctx.fill();
+  const bg2 = ctx.createLinearGradient(0, -6, 0, 6); bg2.addColorStop(0, "#aab4cf"); bg2.addColorStop(0.45, "#5a6482"); bg2.addColorStop(1, "#262c3f");
+  ctx.fillStyle = bg2; rr(1, -6, 25, 11, 3); ctx.fill();
+  ctx.fillStyle = "#151925"; ctx.fillRect(7, -8, 13, 2.5); ctx.fillRect(3, 3, 22, 1.5);
+  const cell = waterColor(0), lvl2 = clamp(P.tank / tankMax, 0, 1);
+  ctx.fillStyle = "#0b0f1c"; ctx.fillRect(9, -3.5, 12, 4.5);
+  ctx.save(); ctx.shadowColor = cell; ctx.shadowBlur = 8; ctx.fillStyle = cell; ctx.fillRect(9.5, -3, 11*lvl2, 3.5); ctx.restore();
+  ctx.fillStyle = "#1b2030"; rr(25, -3.5, 11, 7, 2); ctx.fill();
+  ctx.fillStyle = "#d6def2"; ctx.fillRect(34, -4.2, 2.2, 8.4);
+  if (running && P.cd > COOLDOWN - 0.06){ ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.shadowColor = cell; ctx.shadowBlur = 16; ctx.fillStyle = cell; ctx.beginPath(); ctx.moveTo(36, -5); ctx.lineTo(48, 0); ctx.lineTo(36, 5); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(38, 0, 3, 0, 7); ctx.fill(); ctx.restore(); }
   ctx.restore();
 }
 function drawHat(){
