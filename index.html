@@ -400,7 +400,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], stats:{} }, store(SAVE_KEY) || {});
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 const save = () => store(SAVE_KEY, S);
 
@@ -1070,7 +1070,8 @@ function refreshLB(){ lbCheckChamp(); if (currentPanel === renderLeaderboard && 
     const cred = await auth.signInAnonymously();
     LB.uid = cred.user.uid;
     LB.db = { doc: p => fdb.doc(p.replace(/^lb\//, "splashLb/")) };
-    refreshLB(); syncLB();
+    CHAT.fdb = fdb; CHAT.ts = () => firebase.firestore.FieldValue.serverTimestamp();
+    refreshLB(); syncLB(); chatConnect();
   } catch(e){ console.warn("Leaderboard:", e); if (!LB.loaded) LB.status = "off"; LB.readOnly = !LB.uid; refreshLB(); }
 })();
 function renderLeaderboard(){
@@ -2374,7 +2375,7 @@ function renderHome(){
       <button class="tile" data-act="farmPanel" style="border-color:#8dff5a;background:linear-gradient(135deg,#1a3a1a,#2a1d10)">${bdg(farmReadyCount())}<span class="ic">🌾</span><b>Space Farm</b><small>${farmReadyCount() ? farmReadyCount() + " ready to harvest!" : "Grow crops for gems"}</small></button>
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
-      <button class="tile" data-act="chatPanel"><span class="ic">💬</span><b>Chat</b><small>Local chat</small></button>
+      <button class="tile" data-act="chatPanel" style="border-color:#5cc8ff">${bdg(CHAT.unread)}<span class="ic">💬</span><b>Friends Chat</b><small>${CHAT.unread ? CHAT.unread + " new!" : CHAT.room ? "Room " + CHAT.room : "Talk with friends"}</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
       <button class="tile" data-act="shopPanel"><span class="ic">🛍️</span><b>Shop</b><small>Suits · hats · water</small></button>
       <button class="tile" data-act="lbPanel" style="border-color:#ffd166"><span class="ic">🏆</span><b>Leaderboard</b><small>${lbMyRankText()}</small></button>
@@ -2522,13 +2523,87 @@ function renderSeason(){
   }
   panel("🎟️ Season Pass", h, renderSeason);
 }
-let chatMessages = [{ name:"Splash Jet", text:"Welcome to the chat! Messages stay during this game session." }];
-function renderChat(){
-  const rows = chatMessages.map(m => `<div class="chatmsg"><b>${esc(m.name)}:</b>${esc(m.text)}</div>`).join("");
-  panel("💬 Splash Jet Chat", `<p class="sub">A little in-game chat area. Messages are local to this game session; online multiplayer chat needs a shared server.</p><div class="chatlog" id="chatLog">${rows}</div><div class="chatinput"><input id="chatIn" maxlength="120" autocomplete="off" placeholder="Write a message…"><button class="primary" data-act="chatSend">Send</button></div>`, renderChat);
-  const log = $("chatLog"); if (log) log.scrollTop = log.scrollHeight;
-  const input = $("chatIn"); if (input) input.addEventListener("keydown", e => { if (e.key === "Enter") ACT.chatSend(); });
+// ================= friends chat (Firebase rooms) =================
+const CHAT = { fdb:null, ts:null, room:"", msgs:[], unsub:null, last:0, unread:0, err:"", loaded:false };
+const CHAT_QUICK = ["👋 Hi!","😄 Hehe","GG! 🎉","Race me! 🏁","Battle time ⚔️","Nice one! ⭐","Look at my base 🏠","Brb!","😂","❤️"];
+const BAD_WORDS = ["stupid","idiot","dumb","shut up","hate you","loser","ugly","kill","damn","crap","hell"];
+function chatClean(t){
+  t = String(t || "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (/(https?:|www\.|\.com|\.ca|\.net|@)/i.test(t)) return { err:"No links or emails in chat — stay safe! 🔒" };
+  if (/\d[\d\s-]{5,}\d/.test(t)) return { err:"No phone numbers or long numbers — keep personal info private! 🔒" };
+  for (const w of BAD_WORDS) t = t.replace(new RegExp("\\b" + w.replace(" ", "\\s+") + "\\b", "gi"), m => "⭐".repeat(Math.min(5, m.length)));
+  return { t };
 }
+function isShareCode(t){ return /^(RACE1:|SJ1:|GIFT-)/i.test(t); }
+function newRoomCode(){ const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i=0;i<6;i++) c += a[Math.floor(Math.random()*a.length)]; return c; }
+function chatConnect(){
+  if (CHAT.unsub){ try { CHAT.unsub(); } catch(e){} CHAT.unsub = null; }
+  CHAT.msgs = []; CHAT.loaded = false; CHAT.err = ""; CHAT.unread = 0;
+  CHAT.room = S.chatRoom || "";
+  if (!CHAT.fdb || !CHAT.room) return;
+  let first = true;
+  CHAT.unsub = CHAT.fdb.collection("splashChat").doc(CHAT.room).collection("msgs").orderBy("ts", "desc").limit(60).onSnapshot(snap => {
+    const list = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).reverse();
+    if (!first){ const fresh = list.filter(m => m.u !== LB.uid && !CHAT.msgs.some(o => o.id === m.id)); if (fresh.length && !(currentPanel === renderChat && !$("panel").classList.contains("hidden"))){ CHAT.unread += fresh.length; const m = fresh[fresh.length - 1]; toast(`💬 ${String(m.n || "Friend").slice(0, 14)}: ${isShareCode(m.t) ? "sent a challenge!" : String(m.t).slice(0, 40)}`); sfx.coin(); } }
+    first = false; CHAT.msgs = list; CHAT.loaded = true; CHAT.err = "";
+    if (currentPanel === renderChat && !$("panel").classList.contains("hidden")) renderChatLog(); else updateChatTile();
+  }, err => { CHAT.err = "Chat can't connect right now."; CHAT.loaded = true; if (currentPanel === renderChat) renderChat(); });
+}
+function updateChatTile(){ const t = document.querySelector('[data-act="chatPanel"] small'); if (t) t.textContent = CHAT.unread ? CHAT.unread + " new message" + (CHAT.unread > 1 ? "s" : "") + "!" : CHAT.room ? "Room " + CHAT.room : "Talk with friends"; }
+function nameColor(n){ return `hsl(${hashStr(String(n)) % 360},80%,72%)`; }
+function chatMsgHTML(m){
+  const me = m.u === LB.uid, t = String(m.t || ""), time = m.ts && m.ts.toDate ? m.ts.toDate().toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : "";
+  let body;
+  if (/^RACE1:/i.test(t)) body = `🏁 <i>sent a race challenge!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">👻 Race their ghost</button>`}`;
+  else if (/^SJ1:/i.test(t)) body = `🛠️ <i>shared a level!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">📥 Get level</button>`}`;
+  else if (/^GIFT-/i.test(t)) body = `🎁 <i>sent a pal gift!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">🎁 Open gift</button>`}`;
+  else body = esc(t);
+  return `<div class="chatmsg" style="${me ? "background:#1d4f7a;margin-left:18%" : "margin-right:18%"}"><b style="color:${nameColor(m.n)}">${esc(String(m.n || "Friend").slice(0, 14))}${me ? " (you)" : ""}:</b> ${body} <small style="color:var(--dim);float:right">${time}</small></div>`;
+}
+function renderChatLog(){
+  const log = $("chatLog"); if (!log) return renderChat();
+  log.innerHTML = CHAT.msgs.length ? CHAT.msgs.map(chatMsgHTML).join("") : `<p class="sub">No messages yet — say hi! 👋</p>`;
+  log.scrollTop = log.scrollHeight;
+  log.querySelectorAll("[data-chatcode]").forEach(b => b.onclick = () => { const m = CHAT.msgs.find(x => x.id === b.dataset.chatcode); if (m) useChatCode(m.t); });
+  CHAT.unread = 0;
+}
+function useChatCode(t){
+  if (/^RACE1:/i.test(t)){ const c = parseRaceCode(t); if (!c || !resolveRace(c.spec)){ toast("That race code is broken"); return; } startRace(c.spec, c.ghost); RC.ghostId = c.id; return; }
+  if (/^SJ1:/i.test(t)){ const L = parseLevelCode(t); if (!L){ toast("That level code is broken"); return; } if (S.myLevels.length >= 30){ toast("You have 30 levels — delete one first"); return; } S.myLevels.push(L); save(); toast(`📥 Got "${L.name}"! It's in Level Editor → My Levels`); sfx.win(); return; }
+  if (/^GIFT-/i.test(t)){ renderCodes(); setTimeout(() => { $("codeIn").value = t; ACT.redeem(); }, 0); }
+}
+function renderChat(){
+  let h;
+  if (!CHAT.fdb){ h = `<p class="sub">Chat needs an internet connection. Try again in a moment!</p>`; panel("💬 Friends Chat", h, renderChat); return; }
+  if (!CHAT.room){
+    h = `<p class="sub">Chat with your friends in a <b>private room</b>! Make a room and tell your friends the 6-letter code, or join a friend's room with their code. Only people with the code can see the chat.</p>
+      <div class="btns" style="margin-top:0"><button class="primary" data-act="chatNew">➕ Make a new room</button></div>
+      <div class="sec">🔑 JOIN A FRIEND'S ROOM</div><div class="row"><input type="text" id="roomIn" maxlength="6" placeholder="ABC123" aria-label="Room code" style="text-transform:uppercase;letter-spacing:3px;font-weight:800;width:150px;text-align:center"><button class="primary" data-act="chatJoin">Join</button></div>`;
+    if (S.chatRooms.length) h += `<div class="sec">RECENT ROOMS</div><div class="row">${S.chatRooms.map(r => `<button class="small" data-act="chatJoinCode" data-arg="${esc(r)}">💬 ${esc(r)}</button>`).join("")}</div>`;
+    h += `<p class="sub" style="margin-top:12px">🔒 Stay safe: never share your real name, address, school, phone number or passwords in chat.</p>`;
+    panel("💬 Friends Chat", h, renderChat); return;
+  }
+  h = `<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="pill">Room <b style="letter-spacing:2px">${esc(CHAT.room)}</b> · chatting as <b>${esc(S.name)}</b></span><span><button class="small" data-act="chatCopy">📋 Copy code</button> <button class="small" data-act="chatLeave">🚪 Leave</button></span></div>
+    ${CHAT.err ? `<p class="note">${esc(CHAT.err)}</p>` : ""}
+    <div class="chatlog" id="chatLog"></div>
+    <div class="row" style="margin-top:8px;gap:6px">${CHAT_QUICK.map((q, i) => `<button class="small" data-act="chatQuick" data-arg="${i}">${q}</button>`).join("")}</div>
+    <div class="chatinput"><input id="chatIn" maxlength="120" autocomplete="off" placeholder="Write a message…"><button class="primary" data-act="chatSend">Send</button></div>
+    <div class="row" style="margin-top:8px;gap:6px"><button class="small" data-act="chatShareRace">🏁 Send my last race challenge</button><button class="small" data-act="chatShareLevel">🛠️ Send a level</button></div>
+    <p class="sub" style="margin-top:8px;font-size:12px">🔒 Never share your real name, address, school or phone number. Links and long numbers are blocked.</p>`;
+  panel("💬 Friends Chat · " + esc(CHAT.room), h, renderChat);
+  renderChatLog();
+  const input = $("chatIn"); if (input){ input.addEventListener("keydown", e => { if (e.key === "Enter") ACT.chatSend(); }); }
+}
+async function chatPost(text, isCode){
+  if (!CHAT.fdb || !CHAT.room || !LB.uid){ note("Chat isn't connected yet — try again in a moment."); return false; }
+  if (Date.now() - CHAT.last < 1500){ note("Slow down a little! 🐢"); return false; }
+  let t = text;
+  if (!isCode){ const c = chatClean(text); if (c.err){ note(c.err); sfx.fail(); return false; } t = c.t; if (!t) return false; }
+  CHAT.last = Date.now();
+  try { await CHAT.fdb.collection("splashChat").doc(CHAT.room).collection("msgs").add({ u: LB.uid, n: String(S.name || "Astro").slice(0, 14), t: t.slice(0, 3000), ts: CHAT.ts() }); return true; }
+  catch(e){ note("Couldn't send — chat may be turned off. Ask a grown-up to update the Firebase rules."); return false; }
+}
+let lastRaceCode = "";
 function renderCodes(){
   panel("🔑 Secret Codes", `<p class="sub">Got a secret code or a 🎁 gift code from a friend? Type it here!</p>
     <div class="row"><input type="text" id="codeIn" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Secret code" aria-label="Secret code" style="text-align:center;letter-spacing:3px;font-weight:800"><button class="primary" data-act="redeem">Redeem</button></div>
@@ -2621,8 +2696,16 @@ const ACT = {
   edDelete: i => { i = +i; const L = S.myLevels[i]; if (!L) return; if (ED.confirmDel !== i){ ED.confirmDel = i; note(`Tap 🗑️ again to delete "${L.name}"`); return; } ED.confirmDel = null; S.myLevels.splice(i, 1); save(); renderEditorMenu(); },
   edShare: i => { const L = S.myLevels[+i]; if (!L) return; const code = levelCode(L); const box = $("shareBox"); if (box){ box.style.display = "block"; box.value = code; box.select(); } try { navigator.clipboard.writeText(code).then(() => note("📋 Code copied! Send it to a friend — they paste it in Import.")).catch(() => note("Copy the code from the box below.")); } catch(e){ note("Copy the code from the box below."); } },
   edImport: () => { const v = ($("importIn").value || "").trim(); const L = parseLevelCode(v); if (!L){ note("Hmm, that code doesn't work. Make sure you copied all of it."); sfx.fail(); return; } if (S.myLevels.length >= 30){ note("You have 30 levels — delete one first."); return; } S.myLevels.push(L); save(); sfx.win(); renderEditorMenu(); toast(`📥 Imported "${L.name}"!`); },
-  chatPanel: renderChat,
-  chatSend: () => { const el = $("chatIn"), value = (el?.value || "").trim(); if (!value) return; chatMessages.push({ name: S.name || "Player", text: value.slice(0,120) }); if (chatMessages.length > 40) chatMessages.shift(); renderChat(); },
+  chatPanel: () => { CHAT.unread = 0; renderChat(); },
+  chatSend: async () => { const el = $("chatIn"), v = (el && el.value || "").trim(); if (!v) return; if (await chatPost(v, false) && el) el.value = ""; },
+  chatQuick: i => chatPost(CHAT_QUICK[+i], false),
+  chatNew: () => { const c = newRoomCode(); S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); toast("🎉 Room " + c + " made! Tell your friends the code."); },
+  chatJoin: () => { const c = ($("roomIn").value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (c.length !== 6){ note("Room codes have 6 letters/numbers."); return; } ACT.chatJoinCode(c); },
+  chatJoinCode: c => { S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); },
+  chatLeave: () => { S.chatRoom = ""; save(); chatConnect(); renderChat(); updateChatTile(); },
+  chatCopy: () => { try { navigator.clipboard.writeText(CHAT.room).then(() => toast("📋 Room code copied: " + CHAT.room)).catch(() => toast("Room code: " + CHAT.room)); } catch(e){ toast("Room code: " + CHAT.room); } },
+  chatShareRace: () => { if (!lastRaceCode){ note("Finish a race first, then come back to send your ghost!"); return; } chatPost(lastRaceCode, true).then(ok => ok && toast("🏁 Race challenge sent!")); },
+  chatShareLevel: () => { if (!S.myLevels.length){ note("Make a level in the 🛠️ Level Editor first!"); return; } const L = S.myLevels[S.myLevels.length - 1]; chatPost(levelCode(L), true).then(ok => ok && toast(`🛠️ Sent "${L.name}"!`)); },
   seasonPanel: renderSeason, codesPanel: renderCodes,
   seasonClaim: t => { t = +t; const st = seasonState(); if (t > seasonTier() || st.claimed.includes(t)) return; st.claimed.push(t); save(); grantReward(seasonReward(t), `🎟️ Season tier ${t}!`); },
   redeem: () => {
@@ -2834,6 +2917,7 @@ function finish(clean){
     if (custom){ runGems = 0; xp = 0; runGoo = 0; } else { runGems += prize; xp += 25 + (n - place)*15; }
     $("doneName").textContent = R.icon + " " + R.name;
     $("doneScore").textContent = clean ? RC.time.toFixed(1) + " seconds" : "Didn't finish in time";
+    if (clean){ lastRaceCode = makeRaceCode(); }
     if (clean){ const b = document.createElement("button"); b.textContent = "👻 Challenge a friend"; b.className = "gold"; b.onclick = () => { const code = makeRaceCode(); const box = $("doneNote"); box.innerHTML = `Send this code to a friend — they paste it in 🏁 Rocket Race → Challenge a friend:<textarea readonly style="display:block;width:100%;height:70px;margin-top:6px;background:#0b1030;color:var(--ink);border:1px solid var(--line);border-radius:10px;font:11px ui-monospace,monospace;padding:6px">${esc(code)}</textarea>`; const ta = box.querySelector("textarea"); ta.select(); try { navigator.clipboard.writeText(code).then(() => toast("📋 Race code copied!")).catch(() => {}); } catch(e){} }; setTimeout(() => $("doneBtns").prepend(b), 0); }
     if (ED.testing && custom){ addBtn("Back to editor", openEditor, true); addBtn("Test again", () => startRace({ id:"custom", level:R.level }, null, true)); }
     else { const sp = raceSpec(R), gh = RC.ghost, gid = RC.ghostId; addBtn(gh ? "Race the ghost again" : "Race again", () => { startRace(sp, gh); if (gh) RC.ghostId = gid; }, true); addBtn("Races", renderRaces); addBtn("Home", goHome); }
