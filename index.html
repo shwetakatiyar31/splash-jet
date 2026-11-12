@@ -175,6 +175,7 @@
   <div class="overlay hidden" id="reveal"><div id="confetti"></div><div class="card" id="revealCard"></div></div>
   <div id="touch"><div class="grp"><button data-k="left" aria-label="Walk left">◀</button><button data-k="right" aria-label="Walk right">▶</button></div><div class="grp"><button data-k="dash" aria-label="Dash">💨</button><button data-k="emote" aria-label="Emote">😄</button><button data-k="jump" aria-label="Jump">⤒</button></div></div>
   <div id="edTop">
+    <select id="edType" aria-label="Level type"><option value="normal">🧽 Normal (clean goo)</option><option value="race">🏁 Race vs bots</option><option value="dash">⚡ Challenge (auto-run)</option></select>
     <input type="text" id="edName" maxlength="24" placeholder="Level name" aria-label="Level name">
     <label style="font-size:12px;color:var(--dim)">🎨 <input type="range" id="edHue" min="0" max="359" aria-label="Background colour"></label>
     <select id="edTime" aria-label="Time limit"><option value="60">⏱ 1:00</option><option value="90">⏱ 1:30</option><option value="120">⏱ 2:00</option><option value="150">⏱ 2:30</option><option value="180">⏱ 3:00</option><option value="240">⏱ 4:00</option></select>
@@ -741,7 +742,8 @@ function waterColor(i, rb){
   if (S.water === "lava") return `hsl(${10 + (i*7)%30},100%,${55 + (i%3)*8}%)`;
   const it = SHOP.water.find(w => w.id === S.water); return it ? it.c : "#9be0ff";
 }
-function addGems(v){ if (pw.star) v *= 2; if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; if (mode !== "custom") track("gems", v); return v; }
+function isCustomPlay(){ return mode === "custom" || (mode === "race" && RC && RC.R.id === "custom") || (mode === "dash" && D && D.level.id === "custom"); }
+function addGems(v){ if (pw.star) v *= 2; if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; if (!isCustomPlay()) track("gems", v); return v; }
 
 function blast(){
   if (P.cd > 0 || (P.tank < 1 && !pw.infinite)) return;
@@ -764,7 +766,7 @@ function gooHit(g){
     return;
   }
   if (g.hp <= 0){
-    burst(gx, gy, g.golden ? "#ffd166" : "#8dff5a", 22); sfx.pop(); runGoo++; if (mode !== "custom") track("goo", 1); buddyCheer();
+    burst(gx, gy, g.golden ? "#ffd166" : "#8dff5a", 22); sfx.pop(); runGoo++; if (!isCustomPlay()) track("goo", 1); buddyCheer();
     if (party === "goorush") partyScore++;
     if (g.golden){ track("golden", 1); const gv = addGems(10); floatText(gx, gy - 44, `🌟 GOLDEN! +${gv}`, "#ffd166"); burst(gx, gy, "#fff3b0", 30, 360); sfx.legend(); if (Math.random() < 0.25) addEgg(); }
     combo = comboT > 0 ? combo + 1 : 1; comboT = 3;
@@ -1380,33 +1382,56 @@ function renderFarm(){
 
 // ================= rocket race =================
 const RACES = [
-  { id:"comet",    name:"Comet Course",    icon:"☄️", seed:701, len:2400, d:0.15, ai:[105,118,132], hue:210 },
-  { id:"nebula",   name:"Nebula Speedway", icon:"🌌", seed:702, len:3000, d:0.30, ai:[118,132,146], hue:280 },
-  { id:"asteroid", name:"Asteroid Rally",  icon:"🪨", seed:703, len:3600, d:0.45, ai:[128,143,158], hue:20 },
-  { id:"lava",     name:"Lava Loop",       icon:"🌋", seed:704, len:4000, d:0.55, ai:[138,152,168], hue:10, lava:true, geyser:0.4 },
+  { id:"comet",    name:"Comet Course",    icon:"☄️", seed:701, len:2400, d:0.15, ai:[112,126,140], rub:0.75, hue:210, diff:"Easy" },
+  { id:"nebula",   name:"Nebula Speedway", icon:"🌌", seed:702, len:3000, d:0.30, ai:[138,152,166], rub:0.85, hue:280, diff:"Medium", boost:0.06 },
+  { id:"asteroid", name:"Asteroid Rally",  icon:"🪨", seed:703, len:3600, d:0.45, ai:[158,174,190], rub:0.95, hue:20,  diff:"Hard", boost:0.12 },
+  { id:"lava",     name:"Lava Loop",       icon:"🌋", seed:704, len:4000, d:0.55, ai:[178,194,212], rub:1.0,  hue:10,  diff:"Expert", boost:0.18, lava:true, geyser:0.4 },
 ];
 const RACERS = [ { n:"Zoom", e:"🚀", c:"#ff6b6b" }, { n:"Blip", e:"🛸", c:"#8dff5a" }, { n:"Nova", e:"🌟", c:"#ffd166" } ];
 let RC = null;
-function startRace(id){
+function resolveRace(spec){
+  if (typeof spec === "string") spec = { id: spec };
+  if (!spec) return null;
+  if (spec.id === "daily" && !spec.seed) return { id:"daily", name:"Daily Race #" + dayNumber(), icon:"📅", seed: hashStr("race-" + today()), len:3000, d:0.35, ai:[145,160,175], rub:0.9, boost:0.08, hue: hashStr(today()) % 360, diff:"Daily" };
+  if (spec.id === "daily") return { id:"daily", friend:true, name: String(spec.name || "Daily Race").slice(0, 30), icon:"📅", seed: Number(spec.seed) >>> 0, len:3000, d:0.35, ai:[145,160,175], rub:0.9, boost:0.08, hue: Number(spec.hue) % 360 || 200, diff:"Daily" };
+  if (spec.id === "custom"){ const L = cleanLevel(spec.level); if (!L) return null; return { id:"custom", name: L.name, icon:"🛠️", level: L, ai:[130,145,160], rub:0.85, hue: L.hue, diff:"Custom" }; }
+  return RACES.find(r => r.id === spec.id) || null;
+}
+function raceSpec(R){ return R.id === "custom" ? { id:"custom", level: R.level } : R.id === "daily" ? { id:"daily", seed: R.seed, hue: R.hue, name: R.name } : { id: R.id }; }
+function startRace(spec, ghost, testing){
+  const R = resolveRace(spec); if (!R){ toast("That race can't be loaded"); return; }
   party = null; balloons = []; BT = null; brainQ = null; mode = "race"; mod = null;
-  const R = id === "daily" ? { id:"daily", name:"Daily Race #" + dayNumber(), icon:"📅", seed: hashStr("race-" + today()), len:3000, d:0.35, ai:[120,134,148], hue: hashStr(today()) % 360 } : RACES.find(r => r.id === id);
-  opts = Object.assign({ move:0.15, bounce:0.18 }, R);
-  gen(R.seed, opts); goos = []; items = items.filter(it => it.type !== "quiz" && it.type !== "treasure");
-  const last = plats[plats.length - 1];
-  RC = { R, finishX: last.x + last.w/2, count: 3.4, time: 0, order: [], racers: RACERS.map((r, i) => Object.assign({}, r, { x: plats[0].x + 60 + i*12, y: 250, sp: R.ai[i], wob: Math.random()*6, done: 0 })) };
+  document.body.classList.remove("editing");
+  ED.testing = !!testing;
+  let finishX;
+  if (R.id === "custom"){ opts = { hue: R.hue, grav: R.level.grav }; buildCustom(R.level); finishX = R.level.w - 150; ED.playing = R.level; }
+  else { opts = Object.assign({ move:0.15, bounce:0.18 }, R); gen(R.seed, opts); goos = []; items = items.filter(it => it.type !== "quiz" && it.type !== "treasure"); const last = plats[plats.length - 1]; finishX = last.x + last.w/2; }
+  const racers = ghost ? [{ n: ghost.n, e:"👻", c:"#c49bff", ghost:true, pts: ghost.pts, gtime: ghost.t, x: plats[0].x + 60, y: 300, done: 0 }]
+                       : RACERS.map((r, i) => Object.assign({}, r, { x: plats[0].x + 60 + i*12, y: 250, sp: R.ai[i], wob: Math.random()*6, done: 0, boostT: 0 }));
+  RC = { R, finishX, count: 3.4, time: 0, order: [], racers, ghost: ghost || null, rec: [], recT: 0 };
   begin(150); timeLimit = 150; timeLeft = 150;
   try { startMusic(5); } catch(e){}
-  say("🏁 Get ready…", "#ffd166");
+  say(ghost ? `👻 Racing ${ghost.n}'s ghost — beat ${ghost.t.toFixed(1)}s!` : "🏁 Get ready…", "#ffd166");
 }
 function racePlace(){ return 1 + RC.racers.filter(r => r.done || r.x > P.x).length; }
+function ghostPos(r, t){ const pts = r.pts, f = t / 0.2, i = Math.min(pts.length - 1, Math.floor(f)), j = Math.min(pts.length - 1, i + 1), k = f - Math.floor(f); return [pts[i][0] + (pts[j][0] - pts[i][0])*k, pts[i][1] + (pts[j][1] - pts[i][1])*k]; }
 function updateRace(dt){
-  RC.time += dt;
+  if (!RC.rec.length) RC.rec.push([Math.round(P.x), Math.round(P.y)]);
+  RC.time += dt; RC.recT += dt;
+  if (RC.recT >= 0.2){ RC.recT -= 0.2; if (RC.rec.length < 760) RC.rec.push([Math.round(P.x), Math.round(P.y)]); }
   RC.racers.forEach((r, i) => {
     if (r.done) return;
-    const lead = r.x - P.x, rubber = lead > 450 ? 0.75 : lead < -350 ? 1.25 : 1;
-    r.x += r.sp * rubber * (0.88 + 0.24*Math.abs(Math.sin(tAnim*0.6 + r.wob))) * dt;
+    if (r.ghost){
+      const [gx, gy] = ghostPos(r, RC.time); r.x = gx; r.y = gy;
+      if (RC.time >= r.gtime){ r.done = r.gtime; RC.order.push("👻 " + r.n); say(`👻 ${r.n} finished in ${r.gtime.toFixed(1)}s!`, r.c); }
+      return;
+    }
+    const lead = r.x - P.x, rubber = lead > 450 ? RC.R.rub : lead < -350 ? 1.25 : 1;
+    if (RC.R.boost && r.boostT <= 0 && Math.random() < dt*RC.R.boost*3){ r.boostT = 1.2; }
+    if (r.boostT > 0) r.boostT -= dt;
+    r.x += r.sp * rubber * (r.boostT > 0 ? 1.45 : 1) * (0.88 + 0.24*Math.abs(Math.sin(tAnim*0.6 + r.wob))) * dt;
     r.y = 170 + i*28 + Math.sin(tAnim*1.6 + r.wob)*35;
-    if (Math.random() < 0.4) parts.push({ x: r.x - 18, y: r.y + 4, vx: -60, vy: (Math.random()-.5)*30, l: 0.35, c: r.c });
+    if (Math.random() < (r.boostT > 0 ? 0.9 : 0.4)) parts.push({ x: r.x - 18, y: r.y + 4, vx: -60, vy: (Math.random()-.5)*30, l: 0.35, c: r.boostT > 0 ? "#ff9f43" : r.c });
     if (r.x >= RC.finishX){ r.done = RC.time; RC.order.push(r.e + " " + r.n); say(`${r.e} ${r.n} finished ${["1st","2nd","3rd"][RC.order.length - 1]}!`, r.c); }
   });
   if (P.x >= RC.finishX && running){ RC.order.push("🧑‍🚀 You"); confetti(); sfx.win(); finish(true); }
@@ -1414,7 +1439,7 @@ function updateRace(dt){
 function drawRace(cx){
   const fx = RC.finishX - cx;
   if (fx > -40 && fx < W + 40){ ctx.fillStyle = "#dfe6ff"; ctx.fillRect(fx - 3, 60, 6, SLIME_Y - 60); for (let r=0;r<4;r++) for (let c=0;c<5;c++){ ctx.fillStyle = (r + c) % 2 ? "#111" : "#fff"; ctx.fillRect(fx + 3 + c*10, 60 + r*10, 10, 10); } ctx.font = "900 16px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ffd166"; ctx.fillText("FINISH", fx + 28, 120); ctx.textAlign = "left"; }
-  for (const r of RC.racers){ const x = r.x - cx; if (x < -40 || x > W + 40) continue; ctx.save(); ctx.font = "26px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowColor = r.c; ctx.shadowBlur = 14; ctx.fillText(r.e, x, r.y); ctx.shadowBlur = 0; ctx.font = "800 11px system-ui"; ctx.fillStyle = r.c; ctx.fillText(r.n, x, r.y - 22); ctx.restore(); }
+  for (const r of RC.racers){ const x = r.x - cx; if (x < -40 || x > W + 40) continue; ctx.save(); if (r.ghost) ctx.globalAlpha = 0.65; ctx.font = "26px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.shadowColor = r.c; ctx.shadowBlur = 14; ctx.fillText(r.e, x, r.y); ctx.shadowBlur = 0; ctx.font = "800 11px system-ui"; ctx.fillStyle = r.c; ctx.fillText(r.n, x, r.y - 22); ctx.restore(); }
   const bx = W/2 - 200, bw = 400, st = plats[0].x, span = RC.finishX - st;
   ctx.fillStyle = "#070a18cc"; rr(bx - 10, 50, bw + 20, 22, 11); ctx.fill(); ctx.fillStyle = "#2e3878"; ctx.fillRect(bx, 60, bw, 3);
   ctx.font = "15px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1424,12 +1449,30 @@ function drawRace(cx){
   else if (RC.time < 0.8){ ctx.font = "900 80px system-ui"; ctx.fillStyle = "#8dff5a"; ctx.fillText("GO!", W/2, H/2 - 30); }
   ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 }
+function makeRaceCode(){
+  const pts = RC.rec, flat = [Math.round(pts[0][0]/2), Math.round(pts[0][1]/2)];
+  for (let i=1;i<pts.length;i++){ flat.push(Math.round(pts[i][0]/2) - Math.round(pts[i-1][0]/2), Math.round(pts[i][1]/2) - Math.round(pts[i-1][1]/2)); }
+  try { return "RACE1:" + btoa(unescape(encodeURIComponent(JSON.stringify({ s: raceSpec(RC.R), n: String(S.name || "Friend").slice(0, 14), t: Math.round(RC.time*10)/10, p: flat })))); } catch(e){ return ""; }
+}
+function parseRaceCode(code){
+  try {
+    code = String(code || "").replace(/\s+/g, ""); if (!code.startsWith("RACE1:")) return null;
+    const o = JSON.parse(decodeURIComponent(escape(atob(code.slice(6)))));
+    if (!o || !Array.isArray(o.p) || o.p.length < 4 || o.p.length > 1600) return null;
+    const pts = []; let x = 0, y = 0;
+    for (let i=0;i<o.p.length;i+=2){ x += Number(o.p[i]) || 0; y += Number(o.p[i+1]) || 0; pts.push([x*2, y*2]); }
+    const t = clamp(Number(o.t) || 0, 1, 150);
+    return { spec: o.s, ghost: { n: String(o.n || "Friend").slice(0, 14), t, pts }, id: hashStr(code) };
+  } catch(e){ return null; }
+}
 function renderRaces(){
-  let h = `<p class="sub">Race three rockets to the 🏁 flag! Run, jump, double jump and <b>Shift</b>-dash your way there. 1st place wins 100 💎 + 1 ✨. Finish in the top 3 to unlock the next track.</p>`;
+  let h = `<p class="sub">Race three rockets to the 🏁 flag! Run, jump, double jump and <b>Shift</b>-dash your way there. The bots get faster on every track. 1st place wins 100 💎 + 1 ✨. Finish in the top 3 to unlock the next track.</p>`;
   const dd = S.raceDaily === today();
   h += `<div class="quest" style="border-color:#ffd166"><span class="ic" style="font-size:30px">📅</span><div class="body"><b>Daily Race #${dayNumber()}</b><br><small>New track every day · ${dd ? "✅ podium done today" : "top 3: +1 ✨ + 40 💎"}</small></div><button class="primary" data-act="raceGo" data-arg="daily">Race!</button></div>`;
   RACES.forEach((R, i) => { const rec = S.races[R.id] || {}, prev = i ? S.races[RACES[i-1].id] : null, locked = i > 0 && !(prev && prev.place && prev.place <= 3);
-    h += `<div class="quest"><span class="ic" style="font-size:30px">${locked ? "🔒" : R.icon}</span><div class="body"><b>${R.name}</b><br><small>${rec.place ? "Best: " + ["🥇 1st","🥈 2nd","🥉 3rd","4th"][rec.place - 1] + (rec.best ? " · ⏱ " + rec.best + "s" : "") : "Not raced yet"}</small></div><button class="primary" data-act="raceGo" data-arg="${R.id}" ${locked ? "disabled" : ""}>${locked ? "Top 3 on " + RACES[i-1].name.split(" ")[0] : "Race!"}</button></div>`; });
+    h += `<div class="quest"><span class="ic" style="font-size:30px">${locked ? "🔒" : R.icon}</span><div class="body"><b>${R.name}</b> <small style="color:${["#8dff5a","#5cc8ff","#ff9f43","#ff6b6b"][i]}">· ${R.diff} bots</small><br><small>${rec.place ? "Best: " + ["🥇 1st","🥈 2nd","🥉 3rd","4th"][rec.place - 1] + (rec.best ? " · ⏱ " + rec.best + "s" : "") : "Not raced yet"}</small></div><button class="primary" data-act="raceGo" data-arg="${R.id}" ${locked ? "disabled" : ""}>${locked ? "Top 3 on " + RACES[i-1].name.split(" ")[0] : "Race!"}</button></div>`; });
+  h += `<div class="sec">👻 CHALLENGE A FRIEND</div><p class="sub" style="margin:0 0 8px">Finish any race, tap <b>👻 Challenge a friend</b> and send them the code. They paste it here to race against your ghost on the same track!</p>
+    <div class="row"><input type="text" id="raceCodeIn" placeholder="Paste a race code (starts with RACE1:)" aria-label="Race challenge code" style="flex:1;min-width:200px"><button class="primary" data-act="raceChallenge">👻 Race them!</button></div>`;
   panel("🏁 Rocket Race", h, renderRaces);
 }
 
@@ -1518,6 +1561,10 @@ function cleanLevel(L){
   (Array.isArray(L.goos) ? L.goos : []).slice(0, 150).forEach(g => { if (Array.isArray(g) && out.plats[g[0]] && out.plats[g[0]][3] !== "bounce") out.goos.push([num(g[0], 0, 149, 0), num(g[1], 0, 760, 10), g[2] ? 1 : 0, g[3] ? 1 : 0]); });
   (Array.isArray(L.items) ? L.items : []).slice(0, 250).forEach(it => { if (Array.isArray(it) && IT.includes(it[0])) out.items.push([it[0], num(it[1], 0, ED_W_MAX, 100), num(it[2], 60, 480, 300)].concat(it[0] === "power" && POWERS[it[3]] ? [it[3]] : [])); });
   (Array.isArray(L.fans) ? L.fans : []).slice(0, 40).forEach(f => { if (Array.isArray(f)) out.fans.push([num(f[0], 0, ED_W_MAX, 100), f[1] ? 1 : 0]); });
+  out.type = ["normal","race","dash"].includes(L.type) ? L.type : "normal";
+  const DT = ["spike","block","pad","orb","tank","coin"]; out.dobjs = []; out.dgaps = [];
+  (Array.isArray(L.dobjs) ? L.dobjs : []).slice(0, 700).forEach(o => { if (Array.isArray(o) && DT.includes(o[0])) out.dobjs.push([o[0], num(o[1], 0, 200, 10), num(o[2], 0, 8, 0)]); });
+  (Array.isArray(L.dgaps) ? L.dgaps : []).slice(0, 200).forEach(c => { const v = num(c, 0, 200, -1); if (v >= 0 && !out.dgaps.includes(v)) out.dgaps.push(v); });
   return out;
 }
 function levelCode(L){ try { return "SJ1:" + btoa(unescape(encodeURIComponent(JSON.stringify(cleanLevel(L))))); } catch(e){ return ""; } }
@@ -1531,9 +1578,72 @@ function buildCustom(L){
   L.fans.forEach(f => fans.push(f[1] ? { x: f[0], w:50, geyser:true, ph:(f[0] % 3), period:2.8 } : { x: f[0], w:56 }));
   makeStars(hashStr(L.name || "x"));
 }
-function edRebuild(){ buildCustom(ED.data); const p0 = plats[0]; if (p0){ P.x = p0.x + 110; P.y = p0.y - R - 1; } edInfo(); }
-function edInfo(){ const d = ED.data; $("edInfo").textContent = `🟢 ${d.goos.length} goo · 🪨 ${d.plats.length} rocks · 📏 ${Math.round(d.w/100)/10}k wide`; }
+function edRebuild(){
+  if (ED.data.type === "dash"){ D = Object.assign(buildDashCustom(ED.data), { level:{ id:"custom", hue: ED.data.hue, name: ED.data.name }, practice:false, attempt:0, x: ED.cam + 260, y: DGROUND - 30, vy:0, rot:0, dead:1, tank:100, beatT:0, prog:0, attemptX:-99999, coinsRun:[] }); worldW = ED.data.w; edInfo(); return; }
+  buildCustom(ED.data); const p0 = plats[0]; if (p0){ P.x = p0.x + 110; P.y = p0.y - R - 1; } edInfo(); }
+function edInfo(){ const d = ED.data; if (d.type === "dash"){ $("edInfo").textContent = `⚡ ${(d.dobjs || []).length} things · 🕳️ ${(d.dgaps || []).length} pits · 🪙 ${(d.dobjs || []).filter(o => o[0] === "coin").length}/3`; return; } $("edInfo").textContent = `🟢 ${d.goos.length} goo · 🪨 ${d.plats.length} rocks · 📏 ${Math.round(d.w/100)/10}k wide`; }
 function edPush(){ ED.history.push(JSON.stringify(ED.data)); if (ED.history.length > 40) ED.history.shift(); }
+function edToolbar(){
+  const dash = ED.data.type === "dash", list = dash ? DASH_TOOLS : ED_TOOLS;
+  if (!list.some(t => t[0] === ED.tool)) ED.tool = list[0][0];
+  $("edType").value = ED.data.type || "normal";
+  $("edTime").disabled = dash; $("edGrav").disabled = dash;
+  $("edBot").innerHTML = list.map(t => `<button class="tool${ED.tool === t[0] ? " on" : ""}" data-tool="${t[0]}" title="${t[2]}">${t[1]} ${t[2]}</button>`).join("") + `<button class="tool" data-ed="left" title="Scroll left">◀</button><button class="tool" data-ed="right" title="Scroll right">▶</button><button class="tool" data-ed="wider" title="Make level longer">↔️ Longer</button>`;
+  $("edBot").querySelectorAll("[data-tool]").forEach(b => b.onclick = () => { ED.tool = b.dataset.tool; $("edBot").querySelectorAll("[data-tool]").forEach(x => x.classList.toggle("on", x === b)); });
+  $("edBot").querySelectorAll("[data-ed]").forEach(b => b.onclick = () => edAction(b.dataset.ed));
+}
+const DASH_TOOLS = [["spike","🔺","Spike"],["block","🟦","Block"],["pad","🟡","Jump pad"],["orb","⭕","Jump orb"],["tank","💧","Water tank"],["coin","🪙","Coin"],["gap","🕳️","Slime pit"],["erase","🧽","Eraser"],["pan","✋","Scroll"]];
+function buildDashCustom(L){
+  const objs = [], gaps = []; let coinIdx = 0;
+  for (const [t, c, r] of (L.dobjs || [])){ const x = c*DU, yTop = DGROUND - (r + 1)*DU;
+    if (t === "spike") objs.push({ type:"spike", x, y:yTop, w:DU, h:DU });
+    else if (t === "block") objs.push({ type:"block", x, y:yTop, w:DU, h:DU });
+    else if (t === "pad") objs.push({ type:"pad", x, y:yTop + DU - 10, w:DU, h:10 });
+    else if (t === "orb") objs.push({ type:"orb", x:x + 5, y:yTop + 5, w:30, h:30 });
+    else if (t === "tank") objs.push({ type:"tank", x:x + 8, y:yTop + 6, w:24, h:30 });
+    else if (t === "coin" && coinIdx < 3) objs.push({ type:"coin", idx: coinIdx++, x:x + 5, y:yTop + 5, w:30, h:30 });
+  }
+  const cols = (L.dgaps || []).slice().sort((a, b) => a - b);
+  for (const c of cols){ const last = gaps[gaps.length - 1]; if (last && last[1] === c*DU) last[1] += DU; else gaps.push([c*DU, (c + 1)*DU]); }
+  return { objs, gaps, cps: [], endX: Math.max(10*DU, L.w - 4*DU) };
+}
+function edDashDown(pt){
+  const d = ED.data, x = pt.x + ED.cam, col = Math.floor(x / DU), row = clamp(Math.floor((DGROUND - pt.y) / DU), 0, 8), t = ED.tool;
+  d.dobjs = d.dobjs || []; d.dgaps = d.dgaps || [];
+  if (t === "pan"){ ED.drag = { pan:true, sx: pt.x, cam: ED.cam }; return; }
+  if (t !== "erase" && col < 7){ toast("Keep the start clear so you can get going!"); return; }
+  if (col*DU > d.w - 5*DU){ toast("That's past the finish line!"); return; }
+  edPush();
+  const at = d.dobjs.findIndex(o => o[1] === col && o[2] === row);
+  if (t === "erase"){
+    if (at >= 0) d.dobjs.splice(at, 1);
+    else if (d.dgaps.includes(col)) d.dgaps.splice(d.dgaps.indexOf(col), 1);
+    else { ED.history.pop(); return; }
+  } else if (t === "gap"){ if (d.dgaps.includes(col)) d.dgaps.splice(d.dgaps.indexOf(col), 1); else d.dgaps.push(col); }
+  else {
+    if (t === "coin" && d.dobjs.filter(o => o[0] === "coin").length >= 3 && !(at >= 0 && d.dobjs[at][0] === "coin")){ ED.history.pop(); toast("3 coins max!"); return; }
+    if (at >= 0) d.dobjs.splice(at, 1);
+    d.dobjs.push([t, col, row]);
+  }
+  sfx.tick(); edRebuild();
+}
+function drawDashEdOverlay(){
+  const cam = ED.cam;
+  ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.08)"; ctx.lineWidth = 1;
+  for (let x = -(cam % DU); x < W; x += DU){ ctx.beginPath(); ctx.moveTo(x, DGROUND - 9*DU); ctx.lineTo(x, DGROUND + 40); ctx.stroke(); }
+  for (let r = 0; r <= 9; r++){ ctx.beginPath(); ctx.moveTo(0, DGROUND - r*DU); ctx.lineTo(W, DGROUND - r*DU); ctx.stroke(); }
+  ctx.fillStyle = "rgba(141,255,90,.12)"; ctx.fillRect(-cam, DGROUND - 9*DU, 7*DU, 9*DU);
+  ctx.font = "900 14px system-ui"; ctx.fillStyle = "#8dff5a"; ctx.textAlign = "center"; ctx.fillText("START", 3.5*DU - cam, DGROUND - 9*DU + 18);
+  if (ED.hover){ const col = Math.floor(ED.hover.x / DU), row = clamp(Math.floor((DGROUND - ED.hover.y) / DU), 0, 8); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 2; ctx.strokeRect(col*DU - cam, ED.tool === "gap" ? DGROUND : DGROUND - (row + 1)*DU, DU, ED.tool === "gap" ? 60 : DU); }
+  ctx.font = "700 12px system-ui"; ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.fillText(ED.tool === "gap" ? "Click a column to make (or remove) a slime pit" : ED.tool === "erase" ? "Click something to remove it" : ED.tool === "pan" ? "Drag to scroll" : "Click a square to place it · you auto-run left to right", 12, 100);
+  ctx.restore();
+}
+function startDashCustom(L, testing){
+  ED.playing = L; ED.testing = !!testing; document.body.classList.remove("editing");
+  D = Object.assign(buildDashCustom(L), { level:{ id:"custom", name:L.name, face:"🛠️", diff:"Custom", d:1, hue:L.hue, reward:0 }, practice:false, attempt:0, x:0, y:0, vy:0, rot:0, ground:true, tank:0, airT:0, held:true, cp:null, gemsRun:0, coinsRun:[], dead:0, beatT:0, beat:0, startX:4*DU, prog:0, jetting:false });
+  mode = "dash"; party = null; balloons = []; boss = null; pw = {}; parts = []; floats = []; running = true; shake = 0;
+  dashReset(); show(null);
+}
 function openEditor(){
   running = false; ED.testing = false; mode = "editor"; opts = { hue: ED.data.hue, lava:false };
   stopMusic && stopMusic();
@@ -1541,10 +1651,7 @@ function openEditor(){
   $("hud").classList.remove("on"); $("quitBtn").style.display = "none";
   document.body.classList.remove("playing"); document.body.classList.add("editing");
   $("edName").value = ED.data.name; $("edHue").value = ED.data.hue; $("edTime").value = String(ED.data.time); $("edGrav").value = String(ED.data.grav);
-  $("edBot").innerHTML = ED_TOOLS.map(t => `<button class="tool${ED.tool === t[0] ? " on" : ""}" data-tool="${t[0]}" title="${t[2]}">${t[1]} ${t[2]}</button>`).join("") + `<button class="tool" data-ed="left" title="Scroll left">◀</button><button class="tool" data-ed="right" title="Scroll right">▶</button><button class="tool" data-ed="wider" title="Make level longer">↔️ Longer</button>`;
-  $("edBot").querySelectorAll("[data-tool]").forEach(b => b.onclick = () => { ED.tool = b.dataset.tool; $("edBot").querySelectorAll("[data-tool]").forEach(x => x.classList.toggle("on", x === b)); });
-  $("edBot").querySelectorAll("[data-ed]").forEach(b => b.onclick = () => edAction(b.dataset.ed));
-  edRebuild();
+  edToolbar(); edRebuild();
 }
 function closeEditor(){ document.body.classList.remove("editing"); mode = "level"; goHome(); renderEditorMenu(); }
 function edAction(a){
@@ -1554,7 +1661,8 @@ function edAction(a){
   if (a === "wider"){ if (d.w >= ED_W_MAX){ toast("That's the longest a level can be!"); return; } edPush(); d.w = Math.min(ED_W_MAX, d.w + 600); edRebuild(); ED.cam = d.w - W; toast("📏 Level is longer now"); }
   if (a === "undo"){ const h = ED.history.pop(); if (h){ ED.data = JSON.parse(h); edRebuild(); } else toast("Nothing to undo"); }
   if (a === "test" || a === "save"){
-    if (!d.goos.length){ toast("Add at least one 🟢 goo puddle first!"); sfx.fail(); return; }
+    if ((d.type || "normal") === "normal" && !d.goos.length){ toast("Add at least one 🟢 goo puddle first!"); sfx.fail(); return; }
+    if (d.type === "dash" && !(d.dobjs || []).length && !(d.dgaps || []).length){ toast("Add some spikes, blocks or pits first!"); sfx.fail(); return; }
     d.name = ($("edName").value || "").trim().slice(0, 24) || "My Level";
     if (a === "test"){ playCustom(d, true); return; }
     const copy = cleanLevel(d);
@@ -1564,9 +1672,10 @@ function edAction(a){
   }
   if (a === "exit") closeEditor();
 }
-function edWorld(pt){ return { x: pt.x + camX, y: pt.y }; }
+function edWorld(pt){ return { x: pt.x + (ED.data && ED.data.type === "dash" ? ED.cam : camX), y: pt.y }; }
 function edPlatAt(x, y){ let best = -1, bd = 1e9; ED.data.plats.forEach((p, i) => { if (x >= p[0] - 10 && x <= p[0] + p[2] + 10){ const dy = p[1] - y; if (dy >= -26 && dy < 90 && Math.abs(dy) < bd){ bd = Math.abs(dy); best = i; } } }); return best; }
 function edDown(pt){
+  if (ED.data && ED.data.type === "dash") return edDashDown(pt);
   const w = edWorld(pt), t = ED.tool, d = ED.data;
   if (t === "pan"){ ED.drag = { pan:true, sx: pt.x, cam: ED.cam }; return; }
   if (["rock","ice","bounce","move"].includes(t)){ ED.drag = { x0: snap(w.x), y: clamp(snap(w.y), 80, 470) }; return; }
@@ -1616,7 +1725,10 @@ function drawEditorOverlay(cx){
   ctx.restore();
 }
 function playCustom(L, testing){
-  ED.playing = cleanLevel(L); ED.testing = !!testing;
+  const C = cleanLevel(L);
+  if (C.type === "dash") return startDashCustom(C, testing);
+  if (C.type === "race"){ ED.playing = C; return startRace({ id:"custom", level: C }, null, testing); }
+  ED.playing = C; ED.testing = !!testing;
   document.body.classList.remove("editing");
   mode = "custom"; levelIdx = 0; mod = null; party = null; BT = null; balloons = [];
   opts = { hue: ED.playing.hue, grav: ED.playing.grav };
@@ -1625,12 +1737,12 @@ function playCustom(L, testing){
   say("🛠️ " + ED.playing.name + " — clean all the goo!", "#8dff5a");
 }
 function renderEditorMenu(){
-  let h = `<p class="sub">Build your own levels! Draw rocks, add goo, gems, fans and more, then test and share them with a code.</p>
+  let h = `<p class="sub">Build your own levels! Pick a type at the top of the editor: 🧽 <b>Normal</b> (clean the goo), 🏁 <b>Race</b> (beat bots to the flag) or ⚡ <b>Challenge</b> (auto-run like Geometry Dash). Test and share them with a code.</p>
     <div class="btns" style="margin-top:0"><button class="primary" data-act="edNew">➕ New level</button></div>
     <div class="sec">MY LEVELS <span>${S.myLevels.length}/30</span></div>`;
   if (!S.myLevels.length) h += `<p class="sub">No levels yet — tap <b>New level</b> to make your first one!</p>`;
   S.myLevels.forEach((L, i) => {
-    h += `<div class="quest"><span class="ic" style="width:34px;height:34px;border-radius:10px;background:hsl(${L.hue},45%,25%);display:flex;align-items:center;justify-content:center">🛠️</span><div class="body"><b>${esc(L.name)}</b><br><small>🟢 ${L.goos.length} goo · 🪨 ${L.plats.length} rocks · ⏱ ${fmt(L.time)}</small></div><button class="primary small" data-act="edPlay" data-arg="${i}">▶ Play</button><button class="small" data-act="edEdit" data-arg="${i}">✏️ Edit</button><button class="small" data-act="edShare" data-arg="${i}">📤 Share</button><button class="small" data-act="edDelete" data-arg="${i}">🗑️</button></div>`;
+    h += `<div class="quest"><span class="ic" style="width:34px;height:34px;border-radius:10px;background:hsl(${L.hue},45%,25%);display:flex;align-items:center;justify-content:center">${L.type === "dash" ? "⚡" : L.type === "race" ? "🏁" : "🛠️"}</span><div class="body"><b>${esc(L.name)}</b><br><small>${L.type === "dash" ? `⚡ Challenge · ${(L.dobjs || []).length} things · ${(L.dgaps || []).length} pits` : L.type === "race" ? `🏁 Race vs bots · 🪨 ${L.plats.length} rocks` : `🟢 ${L.goos.length} goo · 🪨 ${L.plats.length} rocks · ⏱ ${fmt(L.time)}`}</small></div><button class="primary small" data-act="edPlay" data-arg="${i}">▶ Play</button><button class="small" data-act="edEdit" data-arg="${i}">✏️ Edit</button><button class="small" data-act="edShare" data-arg="${i}">📤 Share</button><button class="small" data-act="edDelete" data-arg="${i}">🗑️</button></div>`;
   });
   h += `<textarea id="shareBox" readonly style="display:none;width:100%;height:70px;margin-top:6px;background:#0b1030;color:var(--ink);border:1px solid var(--line);border-radius:10px;font:12px ui-monospace,monospace;padding:8px"></textarea>
     <div class="sec">📥 IMPORT A FRIEND'S LEVEL</div><div class="row"><input type="text" id="importIn" placeholder="Paste a level code (starts with SJ1:)" aria-label="Level code" style="flex:1;min-width:200px"><button class="primary" data-act="edImport">Import</button></div>`;
@@ -1638,7 +1750,8 @@ function renderEditorMenu(){
 }
 // editor field listeners
 $("edName").addEventListener("input", e => { if (ED.data) ED.data.name = e.target.value.slice(0, 24); });
-$("edHue").addEventListener("input", e => { if (ED.data){ ED.data.hue = +e.target.value; hue = ED.data.hue; opts.hue = hue; } });
+$("edHue").addEventListener("input", e => { if (ED.data){ ED.data.hue = +e.target.value; hue = ED.data.hue; opts.hue = hue; if (ED.data.type === "dash" && D) D.level.hue = hue; } });
+$("edType").addEventListener("change", e => { if (!ED.data) return; edPush(); ED.data.type = e.target.value; if (ED.data.type === "dash" && !(ED.data.dobjs || []).length){ ED.data.dobjs = [["spike",12,0],["spike",20,0],["spike",21,0],["block",28,0],["block",29,0],["block",29,1],["tank",34,0],["pad",40,0]]; ED.data.dgaps = [46,47,48]; } edToolbar(); edRebuild(); toast(ED.data.type === "dash" ? "⚡ Challenge level: you auto-run — place spikes, blocks & pits!" : ED.data.type === "race" ? "🏁 Race level: beat 3 bots to the flag at the end!" : "🧽 Normal level: clean all the goo!"); });
 $("edTime").addEventListener("change", e => { if (ED.data){ edPush(); ED.data.time = +e.target.value; } });
 $("edGrav").addEventListener("change", e => { if (ED.data){ edPush(); ED.data.grav = +e.target.value; } });
 document.querySelectorAll("#edTop [data-ed]").forEach(b => b.onclick = () => edAction(b.dataset.ed));
@@ -1705,8 +1818,8 @@ function startDash(id, practice){
   dashReset(); show(null);
 }
 function dashReset(){
-  D.attempt++; track("dashAttempts", 1);
-  if (D.level.id !== "daily") dashRec(D.level.id).attempts++;
+  D.attempt++; if (D.level.id !== "custom") track("dashAttempts", 1);
+  if (D.level.id !== "daily" && D.level.id !== "custom") dashRec(D.level.id).attempts++;
   const cp = D.practice && D.cp;
   D.x = cp ? cp.x : D.startX; D.y = DGROUND - 30; D.vy = 0; D.rot = 0; D.ground = true; D.tank = cp ? cp.tank : 0; D.airT = 0; D.dead = 0; D.held = true;
   for (const o of D.objs) if (!cp || o.x > D.x){ o.taken = false; o.used = false; }
@@ -1718,7 +1831,7 @@ function dashDie(){
   D.dead = 0.75; shake = 0.3;
   for (let k=0;k<36;k++) parts.push({ x:D.x + 15, y:D.y + 15, vx:(Math.random()-.5)*600, vy:(Math.random()-.5)*600, l:0.7, c: k%3 ? suitColor() : "#ff6b8a" });
   tone(200, 40, 0.35, "sawtooth", 0.12);
-  if (!D.practice && D.level.id !== "daily"){ const r = dashRec(D.level.id); r.best = Math.max(r.best, Math.floor(D.prog*100)); }
+  if (!D.practice && D.level.id !== "daily" && D.level.id !== "custom"){ const r = dashRec(D.level.id); r.best = Math.max(r.best, Math.floor(D.prog*100)); }
   save();
 }
 function dashNear(o, r){ return Math.hypot(o.x + o.w/2 - (D.x + 15), o.y + o.h/2 - (D.y + 15)) < r; }
@@ -1795,7 +1908,7 @@ function dashRender(){
     else if (o.type === "orb" && !o.used){ const c = { x: x + 15, y: o.y + 15 }; ctx.save(); ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 16; ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(c.x, c.y, 12, 0, 7); ctx.stroke(); ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(c.x, c.y, 18 + Math.sin(tAnim*8)*3, 0, 7); ctx.stroke(); ctx.restore(); }
     else if (o.type === "tank" && !o.taken){ const y = o.y + Math.sin(tAnim*4 + o.x)*3; ctx.save(); ctx.shadowColor = "#5cc8ff"; ctx.shadowBlur = 14; ctx.fillStyle = "#2a6aa8"; rr(x, y + 4, o.w, o.h - 4, 6); ctx.fill(); ctx.fillStyle = "#5cc8ff"; rr(x + 3, y + 12, o.w - 6, o.h - 14, 4); ctx.fill(); ctx.fillStyle = "#cfd8ff"; ctx.fillRect(x + 7, y, 10, 5); ctx.restore(); ctx.fillStyle = "#fff"; ctx.fillRect(x + 6, y + 15, 3, 9); }
     else if (o.type === "gem" && !o.taken){ ctx.fillStyle = "#7ff3ff"; ctx.beginPath(); ctx.moveTo(x + 8, o.y); ctx.lineTo(x + 16, o.y + 8); ctx.lineTo(x + 8, o.y + 16); ctx.lineTo(x, o.y + 8); ctx.closePath(); ctx.fill(); }
-    else if (o.type === "coin" && !o.taken){ const had = D.level.id !== "daily" && dashRec(D.level.id).coins.includes(o.idx); const sx = Math.abs(Math.cos(tAnim*3)); ctx.save(); ctx.translate(x + 15, o.y + 15); ctx.scale(Math.max(0.15, sx), 1); ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 18; ctx.fillStyle = had ? "rgba(92,200,255,.6)" : "#ffd166"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fill(); ctx.fillStyle = had ? "#cfeaff" : "#fff3b0"; ctx.font = "900 16px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("★", 0, 1); ctx.restore(); ctx.textBaseline = "alphabetic"; }
+    else if (o.type === "coin" && !o.taken){ const had = D.level.id !== "daily" && D.level.id !== "custom" && dashRec(D.level.id).coins.includes(o.idx); const sx = Math.abs(Math.cos(tAnim*3)); ctx.save(); ctx.translate(x + 15, o.y + 15); ctx.scale(Math.max(0.15, sx), 1); ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 18; ctx.fillStyle = had ? "rgba(92,200,255,.6)" : "#ffd166"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fill(); ctx.fillStyle = had ? "#cfeaff" : "#fff3b0"; ctx.font = "900 16px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("★", 0, 1); ctx.restore(); ctx.textBaseline = "alphabetic"; }
   }
   if (D.practice) for (const c of D.cps){ const x = c - cam; if (x < -20 || x > W + 20) continue; ctx.fillStyle = D.cp && D.cp.x >= c ? "#8dff5a" : "rgba(141,255,90,.35)"; ctx.beginPath(); ctx.moveTo(x, DGROUND - 40); ctx.lineTo(x + 10, DGROUND - 28); ctx.lineTo(x, DGROUND - 16); ctx.lineTo(x - 10, DGROUND - 28); ctx.closePath(); ctx.fill(); }
   const fx = D.endX - cam; if (fx < W + 50){ const g2 = ctx.createLinearGradient(fx, 0, fx + 120, 0); g2.addColorStop(0, "rgba(255,255,255,.9)"); g2.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g2; ctx.fillRect(fx, 0, 120, DGROUND); ctx.save(); ctx.translate(fx - 14, 200); ctx.rotate(-Math.PI/2); ctx.font = "900 26px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.fillText("FINISH", 0, 0); ctx.restore(); }
@@ -1824,6 +1937,13 @@ function dashComplete(){
   running = false; pointer.down = false; keys.up = false; keys.fire = false;
   const L = D.level, notes = []; let gems = 0, xp = 0, sxp = 0, palRar = null;
   sfx.win(); for (let k=0;k<80;k++) parts.push({ x:D.x - 200 + Math.random()*W, y:-10 - Math.random()*80, vx:(Math.random()-.5)*100, vy:Math.random()*120, l:2, c: pick(["#ffd166","#5cc8ff","#ff8fd0","#8dff5a"]) });
+  if (L.id === "custom"){
+    $("doneTitle").innerHTML = 'Level <span>complete!</span>'; $("doneName").textContent = "⚡ " + L.name; $("doneStars").textContent = [0,1,2].map(i => D.coinsRun.includes(i) ? "🪙" : "").join(" ");
+    $("doneScore").textContent = D.attempt + (D.attempt === 1 ? " attempt — first try!" : " attempts"); $("doneBreak").innerHTML = "Custom levels are just for fun 😉"; $("doneNote").innerHTML = "";
+    const btns = $("doneBtns"); btns.innerHTML = ""; const add = (t, fn, p) => { const b = document.createElement("button"); b.textContent = t; if (p) b.className = "primary"; b.onclick = fn; btns.appendChild(b); };
+    if (ED.testing){ add("Back to editor", openEditor, true); add("Test again", () => startDashCustom(ED.playing, true)); } else { add("Play again", () => startDashCustom(ED.playing, false), true); add("My Levels", renderEditorMenu); add("Home", goHome); }
+    show("done"); return;
+  }
   if (D.practice){ notes.push("Now try it for real — no checkpoints!"); }
   else {
     track("dash", 1);
@@ -1864,6 +1984,7 @@ function renderChallenge(){
 // ================= render =================
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 function render(){
+  if (mode === "editor" && ED.data && ED.data.type === "dash" && D){ D.x = ED.cam + 260; dashRender(); drawDashEdOverlay(); return; }
   if (mode === "dash" && D) return dashRender();
   const target = mode === "editor" ? clamp(ED.cam, 0, Math.max(0, worldW - W)) : clamp(P.x - W*0.42, 0, Math.max(0, worldW - W));
   camX += (target - camX) * 0.12;
@@ -2474,6 +2595,7 @@ const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
   racesPanel: () => renderRaces(), raceGo: id => startRace(id),
+  raceChallenge: () => { const c = parseRaceCode($("raceCodeIn").value); if (!c || !resolveRace(c.spec)){ note("Hmm, that race code doesn't work. Make sure you copied all of it."); sfx.fail(); return; } startRace(c.spec, c.ghost); RC.ghostId = c.id; },
   basePanel: () => { baseSel = null; renderBase(); },
   baseBuy: id => { const d = DEC(id), B = baseState(); if (S.gems < d.price){ note(`Need ${d.price - S.gems} more 💎`); sfx.fail(); return; } S.gems -= d.price; B.inv[id] = (B.inv[id] || 0) + 1; baseSel = id; save(); sfx.coin(); renderBase(); note(`Bought ${d.e} ${d.name}! Tap a square to place it.`); },
   baseSel: id => { baseSel = baseSel === id ? null : id; renderBase(); },
@@ -2666,7 +2788,7 @@ function startParty(id){
   genArena(id); begin(pd.time);
   say(pd.icon + " " + pd.name + "!", "#ffd166");
 }
-function quit(){ running = false; pointer.down = false; save(); if (mode === "custom" && ED.testing){ openEditor(); return; } if (mode === "editor"){ closeEditor(); return; } goHome(); }
+function quit(){ running = false; pointer.down = false; save(); if (isCustomPlay() && ED.testing){ openEditor(); return; } if (mode === "editor"){ closeEditor(); return; } goHome(); }
 
 function finish(clean){
   running = false; pointer.down = false;
@@ -2690,19 +2812,31 @@ function finish(clean){
     if (ED.testing){ addBtn("Back to editor", openEditor, true); addBtn(clean ? "Test again" : "Try again", () => playCustom(L, true)); }
     else { addBtn(clean ? "Play again" : "Try again", () => playCustom(L, false), true); addBtn("My Levels", renderEditorMenu); addBtn("Home", goHome); }
   } else if (mode === "race"){
-    const R = RC.R, place = clean ? RC.racers.filter(r => r.done).length + 1 : 4, prize = [100, 50, 25, 10][place - 1];
-    runGems += prize; xp += 25 + (4 - place)*15;
-    const rec = S.races[R.id] || (S.races[R.id] = { best:0, place:0 });
-    if (clean && (!rec.best || RC.time < rec.best)){ if (rec.best) notes.push("⏱ New best time!"); rec.best = Math.round(RC.time*10)/10; }
-    if (!rec.place || place < rec.place) rec.place = place;
-    if (place === 1){ S.shards += 1; track("raceWins", 1); notes.push("🥇 Winner bonus: +1 ✨"); }
-    if (R.id === "daily" && place <= 3 && S.raceDaily !== today()){ S.raceDaily = today(); S.shards += 1; runGems += 40; notes.push("📅 Daily race podium: +1 ✨ + 40 💎"); }
-    $("doneTitle").innerHTML = ["🥇 1st <span>place!</span>","🥈 2nd <span>place!</span>","🥉 3rd <span>place!</span>","4th <span>place</span>"][place - 1];
+    const R = RC.R, custom = R.id === "custom", n = RC.racers.length + 1, place = clean ? RC.racers.filter(r => r.done).length + 1 : n;
+    let prize = 0;
+    if (RC.ghost){
+      const g = RC.racers[0], won = place === 1;
+      if (won && !custom){ S.ghostBeat = S.ghostBeat || []; if (!S.ghostBeat.includes(RC.ghostId)){ S.ghostBeat.push(RC.ghostId); prize = 30; notes.push("👻 First time beating this ghost: +30 💎"); } }
+      $("doneTitle").innerHTML = won ? `You beat <span>${esc(g.n)}!</span> 🏆` : `<span>${esc(g.n)}</span> wins!`;
+      $("doneBreak").innerHTML = clean ? (won ? `You were ${(g.gtime - RC.time).toFixed(1)}s faster than ${esc(g.n)}'s ghost!` : `${esc(g.n)} was ${(RC.time - g.gtime).toFixed(1)}s faster. Try again!`) : "You didn't reach the flag in time.";
+    } else {
+      prize = custom ? 0 : [100, 50, 25, 10][place - 1];
+      if (!custom){
+        const rec = S.races[R.id] || (S.races[R.id] = { best:0, place:0 });
+        if (R.id !== "daily" || !R.friend){ if (clean && (!rec.best || RC.time < rec.best)){ if (rec.best) notes.push("⏱ New best time!"); rec.best = Math.round(RC.time*10)/10; } if (!rec.place || place < rec.place) rec.place = place; }
+        if (place === 1){ S.shards += 1; track("raceWins", 1); notes.push("🥇 Winner bonus: +1 ✨"); }
+        if (R.id === "daily" && !R.friend && place <= 3 && S.raceDaily !== today()){ S.raceDaily = today(); S.shards += 1; prize += 40; notes.push("📅 Daily race podium: +1 ✨ + 40 💎"); }
+      }
+      $("doneTitle").innerHTML = ["🥇 1st <span>place!</span>","🥈 2nd <span>place!</span>","🥉 3rd <span>place!</span>","4th <span>place</span>"][place - 1];
+      $("doneBreak").innerHTML = (custom ? "Custom races are just for fun 😉" : `Prize 💎 ${prize} · Gems found 💎 ${runGems}`) + `<br>Finish order: ${RC.order.concat(clean ? [] : ["You"]).join(" → ")}`;
+      if (place > 3) notes.push("Tip: Shift to dash, ↑↑ to double jump!");
+    }
+    if (custom){ runGems = 0; xp = 0; runGoo = 0; } else { runGems += prize; xp += 25 + (n - place)*15; }
     $("doneName").textContent = R.icon + " " + R.name;
     $("doneScore").textContent = clean ? RC.time.toFixed(1) + " seconds" : "Didn't finish in time";
-    $("doneBreak").innerHTML = `Prize 💎 ${prize} · Gems found 💎 ${runGems - prize}<br>Finish order: ${RC.order.concat(clean ? [] : ["You"]).join(" → ")}`;
-    if (place > 3) notes.push("Tip: Shift to dash, ↑↑ to double jump!");
-    addBtn("Race again", () => startRace(R.id), true); addBtn("Races", renderRaces); addBtn("Home", goHome);
+    if (clean){ const b = document.createElement("button"); b.textContent = "👻 Challenge a friend"; b.className = "gold"; b.onclick = () => { const code = makeRaceCode(); const box = $("doneNote"); box.innerHTML = `Send this code to a friend — they paste it in 🏁 Rocket Race → Challenge a friend:<textarea readonly style="display:block;width:100%;height:70px;margin-top:6px;background:#0b1030;color:var(--ink);border:1px solid var(--line);border-radius:10px;font:11px ui-monospace,monospace;padding:6px">${esc(code)}</textarea>`; const ta = box.querySelector("textarea"); ta.select(); try { navigator.clipboard.writeText(code).then(() => toast("📋 Race code copied!")).catch(() => {}); } catch(e){} }; setTimeout(() => $("doneBtns").prepend(b), 0); }
+    if (ED.testing && custom){ addBtn("Back to editor", openEditor, true); addBtn("Test again", () => startRace({ id:"custom", level:R.level }, null, true)); }
+    else { const sp = raceSpec(R), gh = RC.ghost, gid = RC.ghostId; addBtn(gh ? "Race the ghost again" : "Race again", () => { startRace(sp, gh); if (gh) RC.ghostId = gid; }, true); addBtn("Races", renderRaces); addBtn("Home", goHome); }
   } else if (mode === "battle" && BT.tier === 3){
     const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl));
     xp += 20 + BT.cleaned*2;
@@ -2797,12 +2931,12 @@ function finish(clean){
   if (clean && mode !== "titan" && mode !== "party" && mode !== "battle" && mode !== "custom" && mode !== "race") S.gems += starBonus;
   S.gems += runGems;
   const bud = buddyInfo(); if (bud) notes.push(`${bud.p.e} ${bud.p.name} helped out!`);
-  const sxp = mode === "custom" ? 0 : runGoo*10 + Math.round(xp*0.8) + 20; addSeasonXP(sxp);
+  const sxp = isCustomPlay() ? 0 : runGoo*10 + Math.round(xp*0.8) + 20; addSeasonXP(sxp);
   notes.unshift(`+${xp} XP · +${sxp} Season XP`);
   addXP(xp); checkAwards(); save(); syncLB();
   $("doneNote").innerHTML = notes.map(esc).join("<br>");
   show("done");
-  if (mode !== "custom" && (clean || mode === "party" || mode === "titan") && Math.random() < 0.5) pendingRewards.push(["sticker"]);
+  if (!isCustomPlay() && (clean || mode === "party" || mode === "titan") && Math.random() < 0.5) pendingRewards.push(["sticker"]);
   if (pendingRewards.length){ currentPanel = () => show("done"); setTimeout(() => { pendingRewards.forEach(([r, t]) => r === "battle" ? battleChest(t) : r === "sticker" ? giveSticker() : grantReward(r, t)); }, 700); }
 }
 
