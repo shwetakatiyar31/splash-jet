@@ -392,6 +392,8 @@ const AWARDS = [
   { id:"racer",   e:"🏁", name:"Speed Star",     d:"Win 5 Rocket Races",       g:100, ok:() => S.stats.raceWins >= 5 },
   { id:"decor",   e:"🏠", name:"Home Sweet Base",d:"Place 10 things in your base", g:60, ok:() => S.base && Object.keys(S.base.cells).length >= 10 },
   { id:"gifter",  e:"🎁", name:"Kind Friend",    d:"Gift a pal to a friend",   g:50,  ok:() => S.stats.gifts >= 1 },
+  { id:"gemgift", e:"💝", name:"Super Generous", d:"Gift gems to friends 10 times", g:100, ok:() => (S.stats.gemGifts || 0) >= 10 },
+  { id:"chatty",  e:"💬", name:"Chatterbox",     d:"Send 50 chat messages",    g:50,  ok:() => (S.stats.chatMsgs || 0) >= 50 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -400,8 +402,8 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], stats:{} }, store(SAVE_KEY) || {});
+S.stats = Object.assign({ gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 const save = () => { S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
 
 // ---- progression helpers ----
@@ -1116,12 +1118,13 @@ function renderSaveChoice(c){
 async function googleSignOut(){ if (!FB.auth) return; await cloudSaveNow(); await FB.auth.signOut(); FB.user = (await FB.auth.signInAnonymously()).user; LB.uid = FB.user.uid; LB.lastSent = ""; syncLB(); chatConnect(); friendsConnect(); toast("Signed out — your progress stays on this device"); renderAccountish(); }
 
 const FR = { list:[], reqIn:[], reqOut:[], unsubs:[], profiles:{}, err:"" };
-function pairRoom(a, b){ const h = hashStr([a, b].sort().join("|")), al = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = "", x = h; for (let i=0;i<6;i++){ c += al[x % al.length]; x = Math.floor(x / al.length) + (i + 7) * 131; } return c; }
+function pairRoom(a, b){ return [a, b].sort().join("_"); }
+function chatFriendOf(room){ if (!room || !LB.uid) return ""; const parts = String(room).split("_"); if (parts.length !== 2 || !parts.includes(LB.uid)) return ""; const f = parts[0] === LB.uid ? parts[1] : parts[0]; return FR.list.includes(f) ? f : ""; }
 function friendsConnect(){
-  FR.unsubs.forEach(u => { try { u(); } catch(e){} }); FR.unsubs = []; FR.list = []; FR.reqIn = []; FR.reqOut = [];
+  FR.unsubs.forEach(u => { try { u(); } catch(e){} }); FR.unsubs = []; FR.list = []; FR.reqIn = []; FR.reqOut = []; FR.loaded = false; chatWatchSync();
   if (!FB.fdb || !LB.uid) return;
   const me = LB.uid, rerender = () => { if (currentPanel === renderFriends && !$("panel").classList.contains("hidden")) renderFriends(); else { const t = document.querySelector('[data-act="friendsPanel"] small'); if (t) t.textContent = FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"; } };
-  FR.unsubs.push(FB.fdb.collection("splashFriends").doc(me).onSnapshot(d => { FR.list = (d.exists && Array.isArray(d.data().list)) ? d.data().list : []; rerender(); }, () => {}));
+  FR.unsubs.push(FB.fdb.collection("splashFriends").doc(me).onSnapshot(d => { FR.list = (d.exists && Array.isArray(d.data().list)) ? d.data().list : []; FR.loaded = true; chatWatchSync(); if (CHAT.room && !chatFriendOf(CHAT.room)){ S.chatRoom = ""; save(); chatConnect(); } rerender(); }, () => {}));
   FR.unsubs.push(FB.fdb.collection("splashReq").where("to", "==", me).onSnapshot(snap => { const before = FR.reqIn.length; FR.reqIn = snap.docs.map(x => Object.assign({ id: x.id }, x.data())).filter(r => r.status === "pending"); if (FR.reqIn.length > before && before >= 0 && FR.loadedIn) { toast("👥 " + (FR.reqIn[FR.reqIn.length - 1].fromName || "Someone") + " wants to be friends!"); sfx.coin(); } FR.loadedIn = true; rerender(); }, () => {}));
   FR.unsubs.push(FB.fdb.collection("splashReq").where("from", "==", me).onSnapshot(async snap => {
     FR.reqOut = snap.docs.map(x => Object.assign({ id: x.id }, x.data()));
@@ -1170,7 +1173,7 @@ function renderFriends(){
   if (!FR.list.length) h += `<p class="sub">No friends yet — add one with their username!</p>`;
   const nowMin = Math.floor(Date.now() / 60000);
   FR.list.forEach(uid => { const f = friendInfo(uid), online = f.seen && nowMin - f.seen <= 3;
-    h += `<div class="quest"><span class="ic" style="font-size:28px">${esc(f.av || "👩‍🚀")}</span><div class="body"><b>${esc(f.name || "Friend")}</b> <small style="color:var(--dim)">${f.user ? "@" + esc(f.user) : ""}</small><br><small>${online ? "🟢 Playing now" : "⚪ Offline"} · Lv ${f.lvl || 1} · ⭐ ${f.stars || 0} stars · 🟢 ${f.goo || 0} goo</small></div><button class="primary small" data-act="friendChat" data-arg="${esc(uid)}">💬 Chat</button><button class="small" data-act="friendRace" data-arg="${esc(uid)}">🏁 Challenge</button></div>`; });
+    h += `<div class="quest"><span class="ic" style="font-size:28px">${esc(f.av || "👩‍🚀")}</span><div class="body"><b>${esc(f.name || "Friend")}</b> <small style="color:var(--dim)">${f.user ? "@" + esc(f.user) : ""}</small><br><small>${online ? "🟢 Playing now" : "⚪ Offline"} · Lv ${f.lvl || 1} · ⭐ ${f.stars || 0} stars · 🟢 ${f.goo || 0} goo</small></div><button class="primary small" data-act="friendChat" data-arg="${esc(uid)}">💬 Chat${CHAT.unreadRooms[pairRoom(LB.uid, uid)] ? " 🔴" : ""}</button><button class="small gold" data-act="friendGift" data-arg="${esc(uid)}">${giftSentToday(uid) ? "✅ Gifted" : "🎁 Gift 💎"}</button><button class="small" data-act="friendRace" data-arg="${esc(uid)}">🏁 Challenge</button></div>`; });
   panel("👥 Friends", h, renderFriends);
 }
 function renderLeaderboard(){
@@ -2489,7 +2492,7 @@ function renderHome(){
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="friendsPanel" style="border-color:#8dff5a">${bdg(FR.reqIn.length)}<span class="ic">👥</span><b>Friends</b><small>${FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"}</small></button>
-      <button class="tile" data-act="chatPanel" style="border-color:#5cc8ff">${bdg(CHAT.unread)}<span class="ic">💬</span><b>Friends Chat</b><small>${CHAT.unread ? CHAT.unread + " new!" : CHAT.room ? "Room " + CHAT.room : "Talk with friends"}</small></button>
+      <button class="tile" data-act="chatPanel" style="border-color:#5cc8ff">${bdg(CHAT.unread)}<span class="ic">💬</span><b>Friends Chat</b><small>${chatTileText()}</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
       <button class="tile" data-act="shopPanel"><span class="ic">🛍️</span><b>Shop</b><small>Suits · hats · water</small></button>
       <button class="tile" data-act="lbPanel" style="border-color:#ffd166"><span class="ic">🏆</span><b>Leaderboard</b><small>${lbMyRankText()}</small></button>
@@ -2638,8 +2641,31 @@ function renderSeason(){
   }
   panel("🎟️ Season Pass", h, renderSeason);
 }
-// ================= friends chat (Firebase rooms) =================
-const CHAT = { fdb:null, ts:null, room:"", msgs:[], unsub:null, last:0, unread:0, err:"", loaded:false };
+// ================= friends-only chat =================
+const CHAT = { fdb:null, ts:null, room:"", msgs:[], unsub:null, last:0, unread:0, err:"", loaded:false, watch:{}, latest:{}, unreadRooms:{} };
+const GEM_GIFT = 15;
+function todayKey(){ const d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
+function giftSentToday(uid){ return S.gemGifts[uid] === todayKey(); }
+function chatViewing(room){ return CHAT.room === room && currentPanel === renderChat && !$("panel").classList.contains("hidden"); }
+function tsMs(m){ return m && m.ts && m.ts.toMillis ? m.ts.toMillis() : Date.now(); }
+function chatRecount(){ CHAT.unread = Object.keys(CHAT.unreadRooms).filter(r => CHAT.unreadRooms[r] && chatFriendOf(r)).length; updateChatTile(); }
+function chatWatchSync(){
+  const want = {}; if (CHAT.fdb && LB.uid) FR.list.forEach(f => want[pairRoom(LB.uid, f)] = true);
+  for (const r of Object.keys(CHAT.watch)) if (!want[r]){ try { CHAT.watch[r](); } catch(e){} delete CHAT.watch[r]; delete CHAT.unreadRooms[r]; }
+  for (const r of Object.keys(want)) if (!CHAT.watch[r]){
+    let first = true;
+    CHAT.watch[r] = CHAT.fdb.collection("splashChat").doc(r).collection("msgs").orderBy("ts", "desc").limit(1).onSnapshot(snap => {
+      const m = snap.docs[0] ? Object.assign({ id: snap.docs[0].id }, snap.docs[0].data()) : null; CHAT.latest[r] = m;
+      if (m && m.u !== LB.uid && tsMs(m) > (S.chatSeen[r] || 0) && !chatViewing(r)){
+        if (!CHAT.unreadRooms[r] && !first){ toast(`💬 ${String(m.n || "Friend").slice(0, 14)}: ${chatPreview(m.t)}`); sfx.coin(); }
+        CHAT.unreadRooms[r] = true;
+      }
+      first = false; chatRecount(); if (currentPanel === renderChat && !CHAT.room && !$("panel").classList.contains("hidden")) renderChat();
+    }, () => {});
+  }
+  chatRecount();
+}
+function chatPreview(t){ t = String(t || ""); if (/^RACE1:/i.test(t)) return "sent a race challenge! 🏁"; if (/^SJ1:/i.test(t)) return "shared a level! 🛠️"; if (/^GIFT-/i.test(t)) return "sent a pal gift! 🎁"; if (/^GEMS1:/i.test(t)) return "sent you gems! 💎"; if (/^STK:/i.test(t)){ const st = STICKERS[+t.slice(4)]; return st ? "sent a sticker " + st.e : "sent a sticker"; } return t.slice(0, 40); }
 const CHAT_QUICK = ["👋 Hi!","😄 Hehe","GG! 🎉","Race me! 🏁","Battle time ⚔️","Nice one! ⭐","Look at my base 🏠","Brb!","😂","❤️"];
 const BAD_WORDS = ["stupid","idiot","dumb","shut up","hate you","loser","ugly","kill","damn","crap","hell"];
 function chatClean(t){
@@ -2649,22 +2675,22 @@ function chatClean(t){
   for (const w of BAD_WORDS) t = t.replace(new RegExp("\\b" + w.replace(" ", "\\s+") + "\\b", "gi"), m => "⭐".repeat(Math.min(5, m.length)));
   return { t };
 }
-function isShareCode(t){ return /^(RACE1:|SJ1:|GIFT-)/i.test(t); }
-function newRoomCode(){ const a = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; let c = ""; for (let i=0;i<6;i++) c += a[Math.floor(Math.random()*a.length)]; return c; }
+function isShareCode(t){ return /^(RACE1:|SJ1:|GIFT-|GEMS1:|STK:)/i.test(t); }
 function chatConnect(){
   if (CHAT.unsub){ try { CHAT.unsub(); } catch(e){} CHAT.unsub = null; }
-  CHAT.msgs = []; CHAT.loaded = false; CHAT.err = ""; CHAT.unread = 0;
+  CHAT.msgs = []; CHAT.loaded = false; CHAT.err = "";
+  if (S.chatRoom && !String(S.chatRoom).includes("_")){ S.chatRoom = ""; S.chatRooms = []; }
   CHAT.room = S.chatRoom || "";
-  if (!CHAT.fdb || !CHAT.room) return;
+  if (!CHAT.fdb || !CHAT.room || !LB.uid || !String(CHAT.room).split("_").includes(LB.uid)){ CHAT.room = ""; return; }
   let first = true;
   CHAT.unsub = CHAT.fdb.collection("splashChat").doc(CHAT.room).collection("msgs").orderBy("ts", "desc").limit(60).onSnapshot(snap => {
     const list = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).reverse();
-    if (!first){ const fresh = list.filter(m => m.u !== LB.uid && !CHAT.msgs.some(o => o.id === m.id)); if (fresh.length && !(currentPanel === renderChat && !$("panel").classList.contains("hidden"))){ CHAT.unread += fresh.length; const m = fresh[fresh.length - 1]; toast(`💬 ${String(m.n || "Friend").slice(0, 14)}: ${isShareCode(m.t) ? "sent a challenge!" : String(m.t).slice(0, 40)}`); sfx.coin(); } }
     first = false; CHAT.msgs = list; CHAT.loaded = true; CHAT.err = "";
-    if (currentPanel === renderChat && !$("panel").classList.contains("hidden")) renderChatLog(); else updateChatTile();
+    if (chatViewing(CHAT.room)){ S.chatSeen[CHAT.room] = Date.now(); delete CHAT.unreadRooms[CHAT.room]; chatRecount(); renderChatLog(); }
   }, err => { CHAT.err = "Chat can't connect right now."; CHAT.loaded = true; if (currentPanel === renderChat) renderChat(); });
 }
-function updateChatTile(){ const t = document.querySelector('[data-act="chatPanel"] small'); if (t) t.textContent = CHAT.unread ? CHAT.unread + " new message" + (CHAT.unread > 1 ? "s" : "") + "!" : CHAT.room ? "Room " + CHAT.room : "Talk with friends"; }
+function chatTileText(){ return CHAT.unread ? CHAT.unread + " friend" + (CHAT.unread > 1 ? "s" : "") + " messaged you!" : FR.list.length ? "Talk with your friends" : "Add friends to chat"; }
+function updateChatTile(){ const t = document.querySelector('[data-act="chatPanel"] small'); if (t) t.textContent = chatTileText(); const b = document.querySelector('[data-act="chatPanel"] .badge'); if (b){ b.textContent = CHAT.unread; b.style.display = CHAT.unread ? "" : "none"; } }
 function nameColor(n){ return `hsl(${hashStr(String(n)) % 360},80%,72%)`; }
 function chatMsgHTML(m){
   const me = m.u === LB.uid, t = String(m.t || ""), time = m.ts && m.ts.toDate ? m.ts.toDate().toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : "";
@@ -2672,6 +2698,8 @@ function chatMsgHTML(m){
   if (/^RACE1:/i.test(t)) body = `🏁 <i>sent a race challenge!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">👻 Race their ghost</button>`}`;
   else if (/^SJ1:/i.test(t)) body = `🛠️ <i>shared a level!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">📥 Get level</button>`}`;
   else if (/^GIFT-/i.test(t)) body = `🎁 <i>sent a pal gift!</i> ${me ? "" : `<button class="small gold" data-chatcode="${esc(m.id)}">🎁 Open gift</button>`}`;
+  else if (/^GEMS1:/i.test(t)){ const got = S.gemClaimed.includes(m.id); body = `💎 <i>sent ${me ? "a" : "you a"} gift of ${GEM_GIFT} gems!</i> ${me ? "" : got ? "<small>✅ claimed</small>" : `<button class="small gold" data-chatcode="${esc(m.id)}">💎 Claim</button>`}`; }
+  else if (/^STK:/i.test(t)){ const st = STICKERS[+t.slice(4)]; body = st ? `<span style="font-size:46px;display:inline-block;vertical-align:middle;animation:pop .4s">${st.e}</span>` : "🖼️"; }
   else body = esc(t);
   return `<div class="chatmsg" style="${me ? "background:#1d4f7a;margin-left:18%" : "margin-right:18%"}"><b style="color:${nameColor(m.n)}">${esc(String(m.n || "Friend").slice(0, 14))}${me ? " (you)" : ""}:</b> ${body} <small style="color:var(--dim);float:right">${time}</small></div>`;
 }
@@ -2679,10 +2707,10 @@ function renderChatLog(){
   const log = $("chatLog"); if (!log) return renderChat();
   log.innerHTML = CHAT.msgs.length ? CHAT.msgs.map(chatMsgHTML).join("") : `<p class="sub">No messages yet — say hi! 👋</p>`;
   log.scrollTop = log.scrollHeight;
-  log.querySelectorAll("[data-chatcode]").forEach(b => b.onclick = () => { const m = CHAT.msgs.find(x => x.id === b.dataset.chatcode); if (m) useChatCode(m.t); });
-  CHAT.unread = 0;
+  log.querySelectorAll("[data-chatcode]").forEach(b => b.onclick = () => { const m = CHAT.msgs.find(x => x.id === b.dataset.chatcode); if (m) useChatCode(m.t, m); });
 }
-function useChatCode(t){
+function useChatCode(t, m){
+  if (/^GEMS1:/i.test(t)){ if (!m || m.u === LB.uid || S.gemClaimed.includes(m.id) || !chatFriendOf(CHAT.room)) return; S.gemClaimed = S.gemClaimed.concat([m.id]).slice(-200); S.gems += GEM_GIFT; save(); sfx.win(); toast(`💎 +${GEM_GIFT} gems from ${String(m.n || "your friend").slice(0, 14)}!`); renderChatLog(); return; }
   if (/^RACE1:/i.test(t)){ const c = parseRaceCode(t); if (!c || !resolveRace(c.spec)){ toast("That race code is broken"); return; } startRace(c.spec, c.ghost); RC.ghostId = c.id; return; }
   if (/^SJ1:/i.test(t)){ const L = parseLevelCode(t); if (!L){ toast("That level code is broken"); return; } if (S.myLevels.length >= 30){ toast("You have 30 levels — delete one first"); return; } S.myLevels.push(L); save(); toast(`📥 Got "${L.name}"! It's in Level Editor → My Levels`); sfx.win(); return; }
   if (/^GIFT-/i.test(t)){ renderCodes(); setTimeout(() => { $("codeIn").value = t; ACT.redeem(); }, 0); }
@@ -2691,31 +2719,40 @@ function renderChat(){
   let h;
   if (!CHAT.fdb){ h = `<p class="sub">Chat needs an internet connection. Try again in a moment!</p>`; panel("💬 Friends Chat", h, renderChat); return; }
   if (!CHAT.room){
-    h = `<p class="sub">Chat with your friends in a <b>private room</b>! Make a room and tell your friends the 6-letter code, or join a friend's room with their code. Only people with the code can see the chat.</p>
-      <div class="btns" style="margin-top:0"><button class="primary" data-act="chatNew">➕ Make a new room</button></div>
-      <div class="sec">🔑 JOIN A FRIEND'S ROOM</div><div class="row"><input type="text" id="roomIn" maxlength="6" placeholder="ABC123" aria-label="Room code" style="text-transform:uppercase;letter-spacing:3px;font-weight:800;width:150px;text-align:center"><button class="primary" data-act="chatJoin">Join</button></div>`;
-    if (S.chatRooms.length) h += `<div class="sec">RECENT ROOMS</div><div class="row">${S.chatRooms.map(r => `<button class="small" data-act="chatJoinCode" data-arg="${esc(r)}">💬 ${esc(r)}</button>`).join("")}</div>`;
+    h = `<p class="sub">💬 You can only chat with your <b>friends</b>. Pick a friend to talk to! To add someone, swap usernames in 👥 Friends.</p>`;
+    if (!S.username) h += `<div class="btns" style="margin-top:0"><button class="primary" data-act="friendsPanel">🪪 Pick a username first</button></div>`;
+    else if (!FR.list.length) h += `<div class="btns" style="margin-top:0"><button class="primary" data-act="friendsPanel">👥 Add a friend</button></div>`;
+    const nowMin = Math.floor(Date.now() / 60000);
+    const rows = FR.list.map(uid => { const r = pairRoom(LB.uid, uid), last = CHAT.latest[r]; return { uid, r, last, t: last ? tsMs(last) : 0 }; }).sort((x, y) => y.t - x.t);
+    rows.forEach(({ uid, r, last }) => { const f = friendInfo(uid), online = f.seen && nowMin - f.seen <= 3, un = CHAT.unreadRooms[r];
+      h += `<div class="quest" style="${un ? "border-color:#ff6b8a" : ""}"><span class="ic" style="font-size:28px">${esc(f.av || "👩‍🚀")}</span><div class="body"><b>${esc(f.name || "Friend")}</b> <small style="color:var(--dim)">${f.user ? "@" + esc(f.user) : ""} ${online ? "🟢" : "⚪"}</small><br><small>${last ? (last.u === LB.uid ? "You: " : "") + esc(chatPreview(last.t)) : "No messages yet — say hi!"}</small></div><button class="primary small" data-act="friendChat" data-arg="${esc(uid)}">${un ? "🔴 New!" : "💬 Open"}</button></div>`; });
     h += `<p class="sub" style="margin-top:12px">🔒 Stay safe: never share your real name, address, school, phone number or passwords in chat.</p>`;
     panel("💬 Friends Chat", h, renderChat); return;
   }
-  h = `<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="pill">Room <b style="letter-spacing:2px">${esc(CHAT.room)}</b> · chatting as <b>${esc(S.name)}</b></span><span><button class="small" data-act="chatCopy">📋 Copy code</button> <button class="small" data-act="chatLeave">🚪 Leave</button></span></div>
+  const fu = chatFriendOf(CHAT.room), fi = friendInfo(fu);
+  if (!fu){ if (!FR.loaded){ panel("💬 Friends Chat", `<p class="sub">Loading your friends… 👥</p>`, renderChat); return; } S.chatRoom = ""; save(); chatConnect(); return renderChat(); }
+  S.chatSeen[CHAT.room] = Date.now(); delete CHAT.unreadRooms[CHAT.room]; chatRecount(); save();
+  const myStk = STICKERS.filter(x => S.stickers[x.id]);
+  h = `<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="pill">${esc(fi.av || "👩‍🚀")} <b>${esc(fi.name || "Friend")}</b> ${fi.user ? "@" + esc(fi.user) : ""}</span><span><button class="small gold" data-act="friendGift" data-arg="${esc(fu)}">${giftSentToday(fu) ? "✅ Gifted today" : "🎁 Gift " + GEM_GIFT + " 💎"}</button> <button class="small" data-act="chatLeave">⬅️ All friends</button></span></div>
     ${CHAT.err ? `<p class="note">${esc(CHAT.err)}</p>` : ""}
     <div class="chatlog" id="chatLog"></div>
     <div class="row" style="margin-top:8px;gap:6px">${CHAT_QUICK.map((q, i) => `<button class="small" data-act="chatQuick" data-arg="${i}">${q}</button>`).join("")}</div>
     <div class="chatinput"><input id="chatIn" maxlength="120" autocomplete="off" placeholder="Write a message…"><button class="primary" data-act="chatSend">Send</button></div>
     <div class="row" style="margin-top:8px;gap:6px"><button class="small" data-act="chatShareRace">🏁 Send my last race challenge</button><button class="small" data-act="chatShareLevel">🛠️ Send a level</button></div>
+    <div class="sec">📒 SEND A STICKER <span>${myStk.length}</span></div>${myStk.length ? `<div class="row" style="gap:4px">${myStk.map(x => `<button class="small" data-act="chatSticker" data-arg="${x.id}" title="${esc(x.name)}" style="font-size:22px;padding:4px 8px">${x.e}</button>`).join("")}</div>` : `<p class="sub">Collect stickers in 📒 Stickers to send them here!</p>`}
     <p class="sub" style="margin-top:8px;font-size:12px">🔒 Never share your real name, address, school or phone number. Links and long numbers are blocked.</p>`;
-  panel("💬 Friends Chat · " + esc(CHAT.room), h, renderChat);
+  panel("💬 Chat with " + esc(fi.name || "Friend"), h, renderChat);
   renderChatLog();
   const input = $("chatIn"); if (input){ input.addEventListener("keydown", e => { if (e.key === "Enter") ACT.chatSend(); }); }
 }
 async function chatPost(text, isCode){
   if (!CHAT.fdb || !CHAT.room || !LB.uid){ note("Chat isn't connected yet — try again in a moment."); return false; }
+  if (!chatFriendOf(CHAT.room)){ note("You can only chat with friends! 👥"); return false; }
   if (Date.now() - CHAT.last < 1500){ note("Slow down a little! 🐢"); return false; }
   let t = text;
   if (!isCode){ const c = chatClean(text); if (c.err){ note(c.err); sfx.fail(); return false; } t = c.t; if (!t) return false; }
   CHAT.last = Date.now();
-  try { await CHAT.fdb.collection("splashChat").doc(CHAT.room).collection("msgs").add({ u: LB.uid, n: String(S.name || "Astro").slice(0, 14), t: t.slice(0, 3000), ts: CHAT.ts() }); return true; }
+  try { await CHAT.fdb.collection("splashChat").doc(CHAT.room).collection("msgs").add({ u: LB.uid, n: String(S.name || "Astro").slice(0, 14), t: t.slice(0, 3000), ts: CHAT.ts() }); if (!isCode) track("chatMsgs", 1); return true; }
   catch(e){ note("Couldn't send — chat may be turned off. Ask a grown-up to update the Firebase rules."); return false; }
 }
 let lastRaceCode = "";
@@ -2792,8 +2829,9 @@ const ACT = {
   addFriend: async () => { const r = await sendFriendRequest($("friendIn").value); if (r === "ok"){ $("friendIn").value = ""; note("📨 Friend request sent!"); sfx.coin(); } else { note(r); sfx.fail(); } },
   acceptFriend: async id => { const r = FR.reqIn.find(x => x.id === id); if (!r) return; try { await addFriendLocal(r.from); await FB.fdb.collection("splashReq").doc(id).update({ status:"accepted" }); sfx.win(); toast("🎉 You're now friends with " + (r.fromName || "them") + "!"); } catch(e){ note("Couldn't accept — try again."); } },
   declineFriend: async id => { try { await FB.fdb.collection("splashReq").doc(id).update({ status:"declined" }); } catch(e){} },
-  friendChat: uid => { const c = pairRoom(LB.uid, uid); S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); },
-  friendRace: async uid => { if (!lastRaceCode){ note("Finish a Rocket Race first, then send your ghost to a friend!"); return; } const c = pairRoom(LB.uid, uid); S.chatRoom = c; save(); chatConnect(); if (await chatPost(lastRaceCode, true)) toast("🏁 Race challenge sent to your friend's chat!"); renderChat(); },
+  friendChat: uid => { if (!FR.list.includes(uid)) return; const c = pairRoom(LB.uid, uid); S.chatRoom = c; save(); chatConnect(); renderChat(); },
+  friendGift: async uid => { if (!FR.list.includes(uid)) return; if (giftSentToday(uid)){ note("You already gifted this friend today — come back tomorrow! 🎁"); return; } const prev = S.chatRoom; S.chatRoom = pairRoom(LB.uid, uid); chatConnect(); CHAT.last = 0; if (await chatPost("GEMS1:" + todayKey(), true)){ S.gemGifts[uid] = todayKey(); S.gems += 5; track("gemGifts", 1); save(); sfx.coin(); toast(`🎁 Sent ${GEM_GIFT} 💎! You got +5 💎 for being kind`); } if (currentPanel === renderFriends && prev !== S.chatRoom){ S.chatRoom = prev; save(); chatConnect(); renderFriends(); } else renderChat(); },
+  friendRace: async uid => { if (!lastRaceCode){ note("Finish a Rocket Race first, then send your ghost to a friend!"); return; } if (!FR.list.includes(uid)) return; const c = pairRoom(LB.uid, uid); S.chatRoom = c; save(); chatConnect(); if (await chatPost(lastRaceCode, true)) toast("🏁 Race challenge sent to your friend's chat!"); renderChat(); },
   racesPanel: () => renderRaces(), raceGo: id => startRace(id),
   raceChallenge: () => { const c = parseRaceCode($("raceCodeIn").value); if (!c || !resolveRace(c.spec)){ note("Hmm, that race code doesn't work. Make sure you copied all of it."); sfx.fail(); return; } startRace(c.spec, c.ghost); RC.ghostId = c.id; },
   basePanel: () => { baseSel = null; renderBase(); },
@@ -2824,11 +2862,8 @@ const ACT = {
   chatPanel: () => { CHAT.unread = 0; renderChat(); },
   chatSend: async () => { const el = $("chatIn"), v = (el && el.value || "").trim(); if (!v) return; if (await chatPost(v, false) && el) el.value = ""; },
   chatQuick: i => chatPost(CHAT_QUICK[+i], false),
-  chatNew: () => { const c = newRoomCode(); S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); toast("🎉 Room " + c + " made! Tell your friends the code."); },
-  chatJoin: () => { const c = ($("roomIn").value || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); if (c.length !== 6){ note("Room codes have 6 letters/numbers."); return; } ACT.chatJoinCode(c); },
-  chatJoinCode: c => { S.chatRoom = c; S.chatRooms = [c].concat(S.chatRooms.filter(r => r !== c)).slice(0, 5); save(); chatConnect(); renderChat(); },
   chatLeave: () => { S.chatRoom = ""; save(); chatConnect(); renderChat(); updateChatTile(); },
-  chatCopy: () => { try { navigator.clipboard.writeText(CHAT.room).then(() => toast("📋 Room code copied: " + CHAT.room)).catch(() => toast("Room code: " + CHAT.room)); } catch(e){ toast("Room code: " + CHAT.room); } },
+  chatSticker: id => { if (!S.stickers[+id]) return; chatPost("STK:" + (+id), true); },
   chatShareRace: () => { if (!lastRaceCode){ note("Finish a race first, then come back to send your ghost!"); return; } chatPost(lastRaceCode, true).then(ok => ok && toast("🏁 Race challenge sent!")); },
   chatShareLevel: () => { if (!S.myLevels.length){ note("Make a level in the 🛠️ Level Editor first!"); return; } const L = S.myLevels[S.myLevels.length - 1]; chatPost(levelCode(L), true).then(ok => ok && toast(`🛠️ Sent "${L.name}"!`)); },
   seasonPanel: renderSeason, codesPanel: renderCodes,
