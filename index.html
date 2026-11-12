@@ -351,7 +351,7 @@ const QUESTS = [
   { k:"gems", goal:40, t:"Collect 40 gems", ic:"💎" }, { k:"levels", goal:2, t:"Clear 2 outposts", ic:"🏁" },
   { k:"bounces", goal:5, t:"Boing on 5 bounce pads", ic:"🦘" }, { k:"bubbles", goal:3, t:"Grab 3 water bubbles", ic:"🫧" },
   { k:"combo", goal:2, t:"Get 2 goo combos (x3)", ic:"🔥" }, { k:"daily", goal:1, t:"Clear the Daily Outpost", ic:"🛰️" },
-  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" },
+  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"harvests", goal:3, t:"Harvest 3 crops on your farm", ic:"🌾" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" },
 ];
 const AWARDS = [
   { id:"first",   e:"💦", name:"First Splash",   d:"Clean your first goo",     g:10,  ok:() => S.stats.goo >= 1 },
@@ -386,6 +386,8 @@ const AWARDS = [
   { id:"treas21", e:"🏴‍☠️", name:"Master Explorer",d:"Find all 21 hidden treasures",g:300, ok:() => S.treasures.length >= 21 },
   { id:"megaevo", e:"🌟", name:"Mega Evolution", d:"Evolve a pal to MEGA",     g:100, ok:() => Object.values(S.pals).some(p => p.mega) },
   { id:"champ",   e:"🏆", name:"Number One!",    d:"Reach #1 on a leaderboard",g:150, ok:() => !!S.champ },
+  { id:"farmer",  e:"🧑‍🌾", name:"Space Farmer",  d:"Harvest 25 crops",         g:100, ok:() => (S.stats.harvests || 0) >= 25 },
+  { id:"defender",e:"🛡️", name:"Farm Defender", d:"Defend your farm 5 times", g:80,  ok:() => (S.stats.defends || 0) >= 5 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -394,8 +396,8 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0 }, S.stats);
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, stats:{} }, store(SAVE_KEY) || {});
+S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0 }, S.stats);
 const save = () => store(SAVE_KEY, S);
 
 // ---- progression helpers ----
@@ -1087,24 +1089,24 @@ function renderLeaderboard(){
 
 // ================= monster battle =================
 const MONSTERS = {
-  blobby: { name:"Blobby",    hp:4,  r:18, c:"#5fd13a", kind:"walk",   sp:70,  gem:2,  desc:"Wobbles toward you" },
-  zappy:  { name:"Zappy",     hp:3,  r:15, c:"#c49bff", kind:"fly",    sp:80,  gem:2,  desc:"Flies in wiggly loops" },
-  boing:  { name:"Boing",     hp:5,  r:17, c:"#ffd166", kind:"bounce", sp:110, gem:3,  desc:"Bounces all over" },
-  spitz:  { name:"Spitz",     hp:6,  r:19, c:"#ff8fd0", kind:"spit",   sp:30,  gem:3,  desc:"Spits goo balls" },
-  ghosty: { name:"Ghosty",    hp:4,  r:16, c:"#e6ecff", kind:"ghost",  sp:60,  gem:4,  desc:"Fades in and out — splash it when you can see it!" },
-  chomp:  { name:"Chomper",   hp:12, r:26, c:"#ff6b6b", kind:"walk",   sp:45,  gem:5,  desc:"Big, slow and hungry" },
-  giant:  { name:"Goo Golem", hp:60, r:56, c:"#2fa36b", kind:"giant",  sp:38,  gem:30, desc:"The final-wave boss!" },
+  blobby: { name:"Gloop Slime",     hp:4,  r:18, c:"#9b6bff", kind:"walk",   sp:70,  gem:2,  desc:"A wobbly purple slime that oozes toward you" },
+  zappy:  { name:"Bramble Bat",     hp:3,  r:15, c:"#7a4fd8", kind:"fly",    sp:85,  gem:2,  desc:"Swoops in thorny loops" },
+  boing:  { name:"Grumpy Mushroom", hp:5,  r:18, c:"#e8453c", kind:"bounce", sp:105, gem:3,  desc:"Bounces around and grumbles" },
+  chomp:  { name:"Truffle Boar",    hp:8,  r:22, c:"#8a5a3a", kind:"charge", sp:55,  gem:4,  desc:"Snorts… then CHARGES! Jump over it!" },
+  spitz:  { name:"Moss Ogre",       hp:10, r:25, c:"#5a9a3a", kind:"spit",   sp:30,  gem:5,  desc:"Throws mossy goo balls" },
+  giant:  { name:"Rock Golem",      hp:60, r:56, c:"#8d93a8", kind:"giant",  sp:36,  gem:30, desc:"The big final-wave boss!" },
 };
 const BATTLES = [
   { name:"Rookie Battle", icon:"🛡️", waves:5, hearts:5, pool:["blobby","zappy","boing"], giantHp:30, hue:120, color:"#8dff5a" },
-  { name:"Brave Battle",  icon:"⚔️", waves:7, hearts:5, pool:["blobby","zappy","boing","spitz","ghosty"], giantHp:50, hue:20, color:"#5cc8ff" },
-  { name:"Hero Battle",   icon:"👑", waves:9, hearts:4, pool:["blobby","zappy","boing","spitz","ghosty","chomp"], giantHp:80, hue:300, color:"#ffd166" },
+  { name:"Brave Battle",  icon:"⚔️", waves:7, hearts:5, pool:["blobby","zappy","boing","chomp","spitz"], giantHp:50, hue:20, color:"#5cc8ff" },
+  { name:"Hero Battle",   icon:"👑", waves:9, hearts:4, pool:["blobby","zappy","boing","chomp","spitz"], giantHp:80, hue:300, color:"#ffd166" },
+  { name:"Farm Defense",  icon:"🌾", waves:3, hearts:5, pool:["blobby","boing","chomp"], giantHp:20, hue:95, color:"#8dff5a", hidden:true },
 ];
 let BT = null;
 function makeWave(tier, w){
   const bt = BATTLES[tier];
   if (w === bt.waves) return ["giant", pick(bt.pool), pick(bt.pool)];
-  const unlocked = bt.pool.slice(0, Math.min(bt.pool.length, 1 + Math.ceil(w/1.5))), n = 2 + w + tier, q = [];
+  const unlocked = bt.pool.slice(0, Math.min(bt.pool.length, 1 + Math.ceil(w/1.5))), n = tier === 3 ? 2 + w : 2 + w + tier, q = [];
   for (let k=0;k<n;k++) q.push(pick(unlocked));
   return q;
 }
@@ -1176,6 +1178,12 @@ function updateBattle(dt){
       m.y = Math.min(m.y, SLIME_Y - m.r - 10);
     } else {
       if (d.kind === "bounce"){ m.vx = dir*d.sp; }
+      else if (d.kind === "charge"){
+        m.st = m.st || "walk"; m.stT = (m.stT || 0) - dt;
+        if (m.st === "walk"){ m.vx += (dir*d.sp - m.vx)*3*dt; if (Math.abs(dx) < 380 && m.ground && m.stT <= 0){ m.st = "wind"; m.stT = 0.65; m.cdir = dir; } }
+        else if (m.st === "wind"){ m.vx *= 0.8; if (m.stT <= 0){ m.st = "run"; m.stT = 0.9; tone(160, 90, 0.25, "sawtooth", 0.06); } }
+        else { m.vx = m.cdir*390; if (Math.random() < 0.5) parts.push({ x:m.x - m.cdir*m.r, y:m.y + m.r*0.8, vx:-m.cdir*60, vy:-40, l:0.3, c:"#b08a5a" }); if (m.stT <= 0){ m.st = "walk"; m.stT = 1.4; } }
+      }
       else { const target = dir*d.sp; m.vx += (target - m.vx)*3*dt; }
       m.vy += 900*dt; m.x += m.vx*dt; m.y += m.vy*dt;
       monsterLand(m, dt);
@@ -1226,28 +1234,76 @@ function drawBattle(cx){
       ctx.globalAlpha = 1; continue;
     }
     ctx.save(); ctx.translate(x, y); ctx.globalAlpha = m.alpha;
-    const sq = m.ground ? 1 + Math.sin(m.t*10)*0.06 : 1;
-    // extras behind
-    if (d.kind === "fly"){ const f = Math.sin(m.t*20)*0.6; ctx.fillStyle = "#8a5cff"; ctx.beginPath(); ctx.moveTo(-r*0.6, -2); ctx.lineTo(-r*1.7, -r*0.6 - f*10); ctx.lineTo(-r*1.2, r*0.3); ctx.closePath(); ctx.fill(); ctx.beginPath(); ctx.moveTo(r*0.6, -2); ctx.lineTo(r*1.7, -r*0.6 - f*10); ctx.lineTo(r*1.2, r*0.3); ctx.closePath(); ctx.fill(); }
-    if (d.kind === "bounce"){ ctx.strokeStyle = "#aab"; ctx.lineWidth = 2; ctx.beginPath(); for (let k=0;k<5;k++) ctx.lineTo((k%2 ? 5 : -5), r + k*3); ctx.stroke(); }
-    ctx.fillStyle = m.flash > 0 ? "#ffffff" : d.c;
-    if (d.kind === "ghost"){ ctx.beginPath(); ctx.arc(0, 0, r, Math.PI, 0); for (let k=0;k<=6;k++) ctx.lineTo(r - k*r/3, r*0.8 + (k%2 ? 5 : -2) + Math.sin(m.t*6 + k)*2); ctx.closePath(); ctx.fill(); }
-    else { ctx.beginPath(); for (let i=0;i<=20;i++){ const a = i/20*Math.PI*2, w = 1 + 0.07*Math.sin(m.t*6 + i*1.9); ctx.lineTo(Math.cos(a)*r*w*sq, Math.sin(a)*r*w/sq); } ctx.closePath(); ctx.fill(); }
-    if (m.type === "giant"){ ctx.fillStyle = "rgba(0,0,0,.18)"; for (let k=0;k<5;k++){ ctx.beginPath(); ctx.arc(Math.cos(k*1.3)*r*0.55, Math.sin(k*2.1)*r*0.5, r*0.12, 0, 7); ctx.fill(); } ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.moveTo(-r*0.4, -r*0.85); ctx.lineTo(-r*0.4, -r*1.15); ctx.lineTo(-r*0.2, -r*0.98); ctx.lineTo(0, -r*1.25); ctx.lineTo(r*0.2, -r*0.98); ctx.lineTo(r*0.4, -r*1.15); ctx.lineTo(r*0.4, -r*0.85); ctx.closePath(); ctx.fill(); }
-    // eyes
-    const lx = clamp((P.x - m.x)/200, -1, 1)*r*0.08, ly = clamp((P.y - m.y)/200, -1, 1)*r*0.08, er = r*0.24;
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-r*0.32, -r*0.15, er, 0, 7); ctx.arc(r*0.32, -r*0.15, er, 0, 7); ctx.fill();
-    ctx.fillStyle = "#1a1030"; ctx.beginPath(); ctx.arc(-r*0.32 + lx, -r*0.15 + ly, er*0.5, 0, 7); ctx.arc(r*0.32 + lx, -r*0.15 + ly, er*0.5, 0, 7); ctx.fill();
-    ctx.strokeStyle = "#1a1030"; ctx.lineWidth = Math.max(2, r*0.08); ctx.beginPath(); ctx.moveTo(-r*0.55, -r*0.45); ctx.lineTo(-r*0.15, -r*0.32); ctx.moveTo(r*0.55, -r*0.45); ctx.lineTo(r*0.15, -r*0.32); ctx.stroke();
-    // mouth
-    ctx.fillStyle = "#1a1030";
-    if (m.type === "chomp" || m.type === "giant"){ ctx.beginPath(); ctx.ellipse(0, r*0.35, r*0.45, r*(0.12 + 0.08*Math.abs(Math.sin(m.t*5))), 0, 0, 7); ctx.fill(); ctx.fillStyle = "#fff"; for (let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(k*r*0.16 - r*0.06, r*0.26); ctx.lineTo(k*r*0.16 + r*0.06, r*0.26); ctx.lineTo(k*r*0.16, r*0.38); ctx.fill(); } }
-    else if (m.type === "spitz"){ ctx.beginPath(); ctx.ellipse(0, r*0.35, r*0.18, r*0.18, 0, 0, 7); ctx.fill(); ctx.fillStyle = "#ff4d8a"; ctx.beginPath(); ctx.ellipse(0, r*0.35, r*0.1, r*0.1, 0, 0, 7); ctx.fill(); }
-    else { ctx.beginPath(); ctx.arc(0, r*0.25, r*0.25, 0.1, Math.PI - 0.1); ctx.fill(); }
+    drawMonsterArt(m, d, r);
     ctx.restore(); ctx.globalAlpha = 1;
     if (m.hp < m.max){ const bw = r*1.6; ctx.fillStyle = "#070a18cc"; rr(x - bw/2, y - r - 14, bw, 6, 3); ctx.fill(); ctx.fillStyle = m.type === "giant" ? "#ffd166" : "#8dff5a"; rr(x - bw/2, y - r - 14, bw*m.hp/m.max, 6, 3); ctx.fill(); }
   }
   if (B.bannerT > 0){ ctx.globalAlpha = Math.min(1, B.bannerT); ctx.font = "900 46px system-ui,sans-serif"; ctx.textAlign = "center"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#1b2350"; ctx.lineWidth = 6; const t = B.wave === BATTLES[B.tier].waves ? "FINAL WAVE!" : "WAVE " + B.wave; ctx.strokeText(t, W/2, H/2 - 40); ctx.fillText(t, W/2, H/2 - 40); ctx.globalAlpha = 1; ctx.textAlign = "left"; }
+}
+function drawMonsterArt(m, d, r){
+  const fl = m.flash > 0, body = fl ? "#ffffff" : d.c, face = Math.sign(P.x - m.x) || 1;
+  const lx = clamp((P.x - m.x)/200, -1, 1)*r*0.07, ly = clamp((P.y - m.y)/200, -1, 1)*r*0.07;
+  const eyes = (ex, ey, er, angry, col) => {
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-ex, ey, er, 0, 7); ctx.arc(ex, ey, er, 0, 7); ctx.fill();
+    ctx.fillStyle = col || "#1a1030"; ctx.beginPath(); ctx.arc(-ex + lx, ey + ly, er*0.52, 0, 7); ctx.arc(ex + lx, ey + ly, er*0.52, 0, 7); ctx.fill();
+    if (angry){ ctx.strokeStyle = "#1a1030"; ctx.lineWidth = Math.max(2, r*0.08); ctx.beginPath(); ctx.moveTo(-ex - er, ey - er*1.3); ctx.lineTo(-ex + er*0.8, ey - er*0.7); ctx.moveTo(ex + er, ey - er*1.3); ctx.lineTo(ex - er*0.8, ey - er*0.7); ctx.stroke(); }
+  };
+  const sq = m.ground ? 1 + Math.sin(m.t*10)*0.06 : 1;
+  if (m.type === "blobby"){ // Gloop Slime
+    ctx.fillStyle = body; ctx.beginPath(); for (let i=0;i<=22;i++){ const a = i/22*Math.PI*2, w = 1 + 0.08*Math.sin(m.t*6 + i*1.9); const yy = Math.sin(a) > 0 ? Math.sin(a)*r*0.75 : Math.sin(a)*r*1.05; ctx.lineTo(Math.cos(a)*r*1.1*w*sq, yy*w/sq); } ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-2, -r*1.0); ctx.quadraticCurveTo(r*0.25, -r*1.45 - Math.sin(m.t*4)*3, 4, -r*1.0); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#c9b0ff"; ctx.beginPath(); ctx.ellipse(-r*0.45, -r*0.5, r*0.16, r*0.24, -0.4, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#7a4fd8"; for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.ellipse(k*r*0.5, r*0.72 + Math.sin(m.t*5 + k)*2, r*0.1, r*0.18, 0, 0, 7); ctx.fill(); }
+    eyes(r*0.32, -r*0.15, r*0.24, false);
+    ctx.fillStyle = "#3a1a6a"; ctx.beginPath(); ctx.arc(0, r*0.22, r*0.22, 0.15, Math.PI - 0.15); ctx.fill(); ctx.fillStyle = "#ff8fd0"; ctx.beginPath(); ctx.arc(0, r*0.34, r*0.09, 0, Math.PI); ctx.fill();
+  } else if (m.type === "boing"){ // Grumpy Mushroom
+    const s2 = m.ground ? 1.15 : 0.92;
+    ctx.fillStyle = fl ? "#fff" : "#f3e4c8"; rr(-r*0.55, -r*0.15, r*1.1, r*1.05*s2, r*0.35); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#6a4a2a"; ctx.beginPath(); ctx.ellipse(-r*0.32, r*0.9*s2, r*0.2, r*0.1, 0, 0, 7); ctx.ellipse(r*0.32, r*0.9*s2, r*0.2, r*0.1, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(0, -r*0.12, r*1.15, r*0.95, 0, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#fff"; [[-0.55,-0.5,0.18],[0.15,-0.78,0.15],[0.62,-0.42,0.14],[-0.12,-0.35,0.1]].forEach(([a,b,c]) => { ctx.beginPath(); ctx.arc(a*r, b*r, c*r, 0, 7); ctx.fill(); });
+    eyes(r*0.22, r*0.18, r*0.14, true);
+    ctx.strokeStyle = "#3a2210"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, r*0.62, r*0.16, Math.PI + 0.3, -0.3); ctx.stroke();
+  } else if (m.type === "zappy"){ // Bramble Bat
+    const f = Math.sin(m.t*20);
+    ctx.fillStyle = fl ? "#fff" : "#4a2a8a";
+    for (const sd of [-1, 1]){ ctx.beginPath(); ctx.moveTo(sd*r*0.6, -r*0.2); ctx.lineTo(sd*r*1.9, -r*0.7 - f*12); ctx.lineTo(sd*r*1.6, -r*0.1); ctx.lineTo(sd*r*1.75, r*0.25 - f*6); ctx.lineTo(sd*r*1.25, r*0.15); ctx.lineTo(sd*r*1.2, r*0.5 - f*4); ctx.lineTo(sd*r*0.6, r*0.25); ctx.closePath(); ctx.fill(); }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(-r*0.7, -r*0.5); ctx.lineTo(-r*0.45, -r*1.25); ctx.lineTo(-r*0.15, -r*0.7); ctx.lineTo(r*0.15, -r*0.7); ctx.lineTo(r*0.45, -r*1.25); ctx.lineTo(r*0.7, -r*0.5); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = fl ? "#fff" : "#3a6a2a"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -r*0.15, r*0.95, Math.PI*1.15, Math.PI*1.85); ctx.stroke();
+    ctx.fillStyle = fl ? "#fff" : "#6aaa3a"; for (let k=0;k<5;k++){ const a = Math.PI*1.2 + k*0.15*Math.PI, px = Math.cos(a)*r*0.95, py = -r*0.15 + Math.sin(a)*r*0.95; ctx.beginPath(); ctx.moveTo(px - 3, py); ctx.lineTo(px + Math.cos(a)*6, py + Math.sin(a)*6); ctx.lineTo(px + 3, py); ctx.fill(); }
+    eyes(r*0.34, -r*0.05, r*0.24, true, "#ff3a6a");
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(-r*0.2, r*0.35); ctx.lineTo(-r*0.1, r*0.6); ctx.lineTo(0, r*0.35); ctx.moveTo(0, r*0.35); ctx.lineTo(r*0.1, r*0.6); ctx.lineTo(r*0.2, r*0.35); ctx.fill();
+  } else if (m.type === "chomp"){ // Truffle Boar
+    ctx.save(); ctx.scale(face, 1); if (m.st === "wind") ctx.translate(Math.sin(m.t*60)*2, 0);
+    ctx.fillStyle = fl ? "#fff" : "#5a3a24"; for (const lx2 of [-0.7, -0.35, 0.3, 0.65]){ rr(lx2*r - 4, r*0.45, 8, r*0.5 + (m.st === "run" ? Math.sin(m.t*30 + lx2*5)*3 : 0), 3); ctx.fill(); }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r*0.1, 0, r*1.15, r*0.78, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#6a4430"; for (let k=0;k<5;k++){ ctx.beginPath(); ctx.moveTo(-r*0.9 + k*r*0.3, -r*0.7); ctx.lineTo(-r*0.8 + k*r*0.3, -r*0.98); ctx.lineTo(-r*0.7 + k*r*0.3, -r*0.68); ctx.fill(); }
+    ctx.fillStyle = body; ctx.beginPath(); ctx.moveTo(r*0.35, -r*0.55); ctx.lineTo(r*0.5, -r*1.05); ctx.lineTo(r*0.72, -r*0.5); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#f2a0a8"; ctx.beginPath(); ctx.ellipse(r*1.05, r*0.12, r*0.3, r*0.24, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = "#5a2a30"; ctx.beginPath(); ctx.arc(r*0.98, r*0.1, r*0.06, 0, 7); ctx.arc(r*1.13, r*0.1, r*0.06, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#fffbe8"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(r*0.85, r*0.32); ctx.quadraticCurveTo(r*0.95, r*0.05, r*0.75, -r*0.05); ctx.stroke();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(r*0.62, -r*0.25, r*0.17, 0, 7); ctx.fill(); ctx.fillStyle = m.st === "wind" || m.st === "run" ? "#ff3a3a" : "#1a1030"; ctx.beginPath(); ctx.arc(r*0.66, -r*0.24, r*0.09, 0, 7); ctx.fill();
+    ctx.strokeStyle = "#1a1030"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(r*0.45, -r*0.48); ctx.lineTo(r*0.8, -r*0.36); ctx.stroke();
+    ctx.restore();
+    if (m.st === "wind"){ ctx.font = "900 18px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "#ff6b3a"; ctx.fillText("!", 0, -r - 6); ctx.textAlign = "left"; }
+  } else if (m.type === "spitz"){ // Moss Ogre
+    ctx.fillStyle = body; ctx.beginPath(); ctx.ellipse(-r*1.0, r*0.15, r*0.28, r*0.45, 0.3, 0, 7); ctx.ellipse(r*1.0, r*0.15, r*0.28, r*0.45, -0.3, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 0, r*0.95*sq, r*1.0/sq, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = fl ? "#fff" : "#3f7a2a"; [[-0.45,-0.5,0.2],[0.4,0.35,0.24],[-0.35,0.55,0.16],[0.55,-0.2,0.13]].forEach(([a,b,c]) => { ctx.beginPath(); ctx.arc(a*r, b*r, c*r, 0, 7); ctx.fill(); });
+    ctx.fillStyle = fl ? "#fff" : "#8dff5a"; for (let k=-2;k<=2;k++){ ctx.beginPath(); ctx.ellipse(k*r*0.22, -r*0.95 - Math.abs(Math.sin(m.t*3 + k))*3, r*0.12, r*0.2, k*0.3, 0, 7); ctx.fill(); }
+    ctx.fillStyle = fl ? "#fff" : "#2f5a1f"; rr(-r*0.6, -r*0.45, r*1.2, r*0.16, 4); ctx.fill();
+    eyes(r*0.28, -r*0.18, r*0.15, false);
+    ctx.fillStyle = "#1a3a10"; ctx.beginPath(); ctx.ellipse(0, r*0.38, r*0.38, r*0.16, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = "#fffbe8"; ctx.beginPath(); ctx.moveTo(-r*0.28, r*0.4); ctx.lineTo(-r*0.2, r*0.18); ctx.lineTo(-r*0.12, r*0.4); ctx.moveTo(r*0.12, r*0.4); ctx.lineTo(r*0.2, r*0.18); ctx.lineTo(r*0.28, r*0.4); ctx.fill();
+  } else { // Rock Golem (giant)
+    ctx.fillStyle = fl ? "#fff" : "#6d7286"; ctx.beginPath(); ctx.ellipse(-r*0.95, r*0.2 + Math.sin(m.t*3)*4, r*0.32, r*0.42, 0.2, 0, 7); ctx.ellipse(r*0.95, r*0.2 - Math.sin(m.t*3)*4, r*0.32, r*0.42, -0.2, 0, 7); ctx.fill();
+    ctx.fillStyle = body; ctx.beginPath(); const pts = [[-0.8,-0.75],[-0.3,-1.0],[0.35,-0.95],[0.85,-0.6],[0.95,0.2],[0.7,0.85],[0,1.0],[-0.7,0.85],[-0.98,0.15]]; pts.forEach(([a,b], k) => k ? ctx.lineTo(a*r, b*r) : ctx.moveTo(a*r, b*r)); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = fl ? "#fff" : "#4a4f62"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-r*0.3, -r*0.9); ctx.lineTo(-r*0.15, -r*0.55); ctx.lineTo(-r*0.35, -r*0.3); ctx.moveTo(r*0.5, r*0.3); ctx.lineTo(r*0.3, r*0.55); ctx.lineTo(r*0.45, r*0.8); ctx.stroke();
+    ctx.fillStyle = fl ? "#fff" : "#5a9a3a"; ctx.beginPath(); ctx.ellipse(r*0.3, -r*0.9, r*0.3, r*0.1, 0.2, 0, 7); ctx.ellipse(-r*0.75, r*0.6, r*0.18, r*0.08, -0.5, 0, 7); ctx.fill();
+    ctx.save(); ctx.shadowColor = "#ffb347"; ctx.shadowBlur = 16; ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.ellipse(-r*0.3 + lx, -r*0.2 + ly, r*0.14, r*0.09, 0.2, 0, 7); ctx.ellipse(r*0.3 + lx, -r*0.2 + ly, r*0.14, r*0.09, -0.2, 0, 7); ctx.fill(); ctx.restore();
+    ctx.fillStyle = "#3a3f52"; rr(-r*0.35, r*0.25, r*0.7, r*0.18 + Math.abs(Math.sin(m.t*3))*r*0.08, 5); ctx.fill();
+  }
 }
 function battleChest(tier){
   const cards = [], g = [300, 600, 1000][tier] + Math.floor(Math.random()*200), sh = [3, 6, 10][tier];
@@ -1265,6 +1321,7 @@ function battleChest(tier){
 function renderBattle(){
   let h = `<p class="sub">Goo monsters attack in waves! <b>Splash them clean</b> with your water (ground pound works too). Don't let them touch you — you only have a few ❤️. Monsters drop hearts, power-ups and gems. Clear the final wave's <b>Goo Golem</b> to open a huge <b>Battle Chest!</b></p>`;
   BATTLES.forEach((bt, i) => {
+    if (bt.hidden) return;
     const rec = S.battle[i] || { wins:0, best:0 }, locked = i > 0 && !(S.battle[i-1] && S.battle[i-1].wins);
     const chest = ["300+ 💎 · 3 ✨ · 2 pals · egg", "600+ 💎 · 6 ✨ · 3 pals · 2 eggs", "1000+ 💎 · 10 ✨ · 4 pals · 2 eggs · Monster Horns · + a MEGA CHEST"][i];
     h += `<div class="quest" style="border-color:${bt.color}"><span class="ic" style="font-size:34px">${locked ? "🔒" : bt.icon}</span><div class="body"><b>${bt.name}</b> <small>· ${bt.waves} waves · ${"❤️".repeat(bt.hearts)}</small><br><small>💰 Chest: ${chest}</small><br><small style="color:var(--gold)">${rec.wins ? "🏆 Won " + rec.wins + "×" : "Best: wave " + rec.best}</small></div><button class="primary" data-act="battleGo" data-arg="${i}" ${locked ? "disabled" : ""}>${locked ? "Win " + BATTLES[i-1].name.split(" ")[0] + " first" : "Fight!"}</button></div>`;
@@ -1275,6 +1332,45 @@ function renderBattle(){
     h += `<div class="item${n ? "" : " locked"}"><span class="sw" style="background:${n ? d.c : "#333a66"};font-size:16px">${n ? "👀" : "?"}</span><b>${n ? d.name : "???"}</b><span class="p">${n ? n + " cleaned" : "Not met yet"}</span><small style="color:var(--dim);font-size:11px">${n ? d.desc : ""}</small>${ready ? `<button class="small gold" data-act="bookClaim" data-arg="${k}">Claim 75 💎</button>` : S.bookClaimed.includes(k) ? "✅" : n ? `<span class="p">${Math.min(n,25)}/25</span>` : ""}</div>`;
   }
   panel("⚔️ Monster Battle", h + "</div>", renderBattle);
+}
+
+// ================= space farm =================
+const SEEDS = [
+  { id:"carrot",    e:"🥕", name:"Star Carrot",    cost:5,   min:2,   g:15 },
+  { id:"berry",     e:"🍓", name:"Moon Berry",     cost:15,  min:10,  g:50 },
+  { id:"corn",      e:"🌽", name:"Comet Corn",     cost:30,  min:30,  g:120, s:1 },
+  { id:"gemflower", e:"🌸", name:"Gem Flower",     cost:60,  min:120, g:300, s:2 },
+  { id:"pumpkin",   e:"🎃", name:"Galaxy Pumpkin", cost:150, min:480, g:800, s:3, egg:1 },
+];
+const SEED = id => SEEDS.find(x => x.id === id);
+const FARM_MAX = 9;
+let farmPick = -1, farmTimer = null;
+function farmState(){ if (!S.farm) S.farm = { plots:[null,null,null,null,null,null], lastPest:0, pest:null }; return S.farm; }
+function farmReady(pl){ return Date.now() >= pl.t0 + pl.dur; }
+function farmProg(pl){ return clamp((Date.now() - pl.t0) / pl.dur, 0, 1); }
+function farmLeft(pl){ const ms = Math.max(0, pl.t0 + pl.dur - Date.now()), m = Math.floor(ms/60000), sec = Math.floor(ms/1000) % 60, h = Math.floor(m/60); return h ? `${h}h ${m%60}m` : m ? `${m}m ${sec}s` : `${sec}s`; }
+function farmReadyCount(){ return S.farm ? S.farm.plots.filter(pl => pl && farmReady(pl)).length : 0; }
+function farmPlotHTML(pl, i){
+  if (!pl) return `<button class="item" data-act="farmPick" data-arg="${i}" style="min-height:118px;background:#2a1d10;border-color:#5a3a20"><span class="em" style="font-size:30px">🟫</span><b>Empty plot</b><span class="p">${farmPick === i ? "Choose a seed ↓" : "Tap to plant"}</span></button>`;
+  const sd = SEED(pl.seed), ready = farmReady(pl), p = farmProg(pl), stage = ready ? sd.e : p < 0.33 ? "🌱" : p < 0.75 ? "🌿" : "🪴";
+  return `<div class="item" style="min-height:118px;background:linear-gradient(#1a2150,#2a1d10);border-color:${ready ? "#ffd166" : "#5a3a20"}"><span class="em" style="font-size:${ready ? 36 : 30}px">${stage}</span><b>${sd.name}</b>${ready ? `<button class="small gold" data-act="farmHarvest" data-arg="${i}">✨ Harvest</button>` : `<div class="bar" style="width:90%"><i data-fbar="${i}" style="width:${Math.round(p*100)}%"></i></div><span class="p" data-ftime="${i}">${farmLeft(pl)}</span>${pl.w ? `<span class="p">💧 watered</span>` : `<button class="small" data-act="farmWater" data-arg="${i}">💧 Water</button>`}`}</div>`;
+}
+function renderFarm(){
+  const F = farmState();
+  if (!F.pest && F.plots.some(pl => pl && !farmReady(pl)) && Date.now() - F.lastPest > 8*60000 && Math.random() < 0.4){ F.lastPest = Date.now(); F.pest = pick(["chomp","boing","blobby","spitz"]); save(); }
+  let h = `<p class="sub">Plant seeds, water them, and harvest them for gems! Crops keep growing even when you're playing other modes. Watch out for sneaky farm monsters! 👀</p><div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">🌾 ${S.stats.harvests || 0} harvested</span></div>`;
+  if (F.pest){ const m = MONSTERS[F.pest]; h += `<div class="quest" style="border-color:#ff6b6b;background:linear-gradient(90deg,#4a1a1a,#1a2150)"><span class="ic" style="font-size:30px">⚠️</span><div class="body"><b>A ${m.name} is sneaking toward your crops!</b><br><small>Defend your farm to make your crops grow faster — or it might nibble one!</small></div><button class="primary" data-act="farmDefend">⚔️ Defend!</button><button class="small" data-act="farmIgnore">Ignore</button></div>`; }
+  h += `<div class="items" style="grid-template-columns:repeat(3,1fr)">${F.plots.map(farmPlotHTML).join("")}</div>`;
+  if (farmPick >= 0) h += `<div class="sec">🌱 CHOOSE A SEED FOR PLOT ${farmPick + 1}</div><div class="row">${SEEDS.map(sd => `<button class="packbtn" data-act="farmPlant" data-arg="${sd.id}" style="min-width:120px"><span class="em">${sd.e}</span><b>${sd.name}</b><span>💎 ${sd.cost}</span><small>Grows in ${sd.min >= 60 ? sd.min/60 + "h" : sd.min + " min"} → ${sd.g} 💎${sd.s ? " + " + sd.s + " ✨" : ""}${sd.egg ? " + 🥚" : ""}</small></button>`).join("")}</div>`;
+  if (F.plots.length < FARM_MAX) h += `<div class="btns"><button class="small" data-act="farmBuy">➕ Buy another plot · 💎 ${150 * (F.plots.length - 5)}</button></div>`;
+  panel("🌾 Space Farm", h, renderFarm);
+  clearInterval(farmTimer);
+  farmTimer = setInterval(() => {
+    if (currentPanel !== renderFarm || $("panel").classList.contains("hidden")){ clearInterval(farmTimer); return; }
+    let full = false;
+    F.plots.forEach((pl, i) => { if (!pl) return; const b = document.querySelector(`[data-fbar="${i}"]`), t = document.querySelector(`[data-ftime="${i}"]`); if (farmReady(pl)){ if (b) full = true; return; } if (b) b.style.width = Math.round(farmProg(pl)*100) + "%"; if (t) t.textContent = farmLeft(pl); });
+    if (full){ sfx.coin(); renderFarm(); }
+  }, 1000);
 }
 
 // ================= sticker album =================
@@ -2048,6 +2144,7 @@ function renderHome(){
       <button class="tile" data-act="passPanel">${bdg(b.pass)}<span class="ic">⭐</span><b>Star Pass</b><small>Lv ${L} rewards</small></button>
       <button class="tile" data-act="seasonPanel" style="border-color:#ffd166">${bdg(b.season)}<span class="ic">🎟️</span><b>Season Pass</b><small>Tier ${seasonTier()}/30 · ${seasonEnds()} left</small></button>
       <button class="tile" data-act="codesPanel"><span class="ic">🔑</span><b>Codes</b><small>Secret rewards</small></button>
+      <button class="tile" data-act="farmPanel" style="border-color:#8dff5a;background:linear-gradient(135deg,#1a3a1a,#2a1d10)">${bdg(farmReadyCount())}<span class="ic">🌾</span><b>Space Farm</b><small>${farmReadyCount() ? farmReadyCount() + " ready to harvest!" : "Grow crops for gems"}</small></button>
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="chatPanel"><span class="ic">💬</span><b>Chat</b><small>Local chat</small></button>
@@ -2268,6 +2365,14 @@ function rain(n, best){
 const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
+  farmPanel: () => { farmPick = -1; renderFarm(); },
+  farmPick: i => { farmPick = farmPick === +i ? -1 : +i; renderFarm(); },
+  farmPlant: id => { const F = farmState(), sd = SEED(id); if (farmPick < 0 || F.plots[farmPick]) return; if (S.gems < sd.cost){ note(`Need ${sd.cost - S.gems} more 💎`); sfx.fail(); return; } S.gems -= sd.cost; F.plots[farmPick] = { seed: id, t0: Date.now(), dur: sd.min*60000, w:false }; farmPick = -1; save(); sfx.bubble(); renderFarm(); toast(`${sd.e} Planted ${sd.name}!`); },
+  farmWater: i => { const pl = farmState().plots[+i]; if (!pl || pl.w || farmReady(pl)) return; pl.w = true; pl.t0 -= (pl.t0 + pl.dur - Date.now()) * 0.25; save(); sfx.bubble(); toast("💧 Splash! It grows 25% faster now"); renderFarm(); },
+  farmHarvest: i => { const F = farmState(), pl = F.plots[+i]; if (!pl || !farmReady(pl)) return; const sd = SEED(pl.seed); F.plots[+i] = null; track("harvests", 1); addXP(10 + sd.cost/5); addSeasonXP(20 + sd.cost/3); save(); grantReward({ g: sd.g, s: sd.s, egg: sd.egg }, `🌾 Harvested a ${sd.name}!`); syncLB && syncLB(); },
+  farmBuy: () => { const F = farmState(), c = 150 * (F.plots.length - 5); if (F.plots.length >= FARM_MAX) return; if (S.gems < c){ note(`Need ${c - S.gems} more 💎`); sfx.fail(); return; } S.gems -= c; F.plots.push(null); save(); sfx.coin(); renderFarm(); },
+  farmDefend: () => startBattle(3),
+  farmIgnore: () => { const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl)); const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); const m = MONSTERS[F.pest]; F.pest = null; save(); renderFarm(); note(v ? `The ${m.name} nibbled your ${SEED(v.seed).name}! It lost half its growth.` : `The ${m.name} wandered off.`); },
   stickersPanel: () => renderStickers(),
   stickerPage: pg => { pg = +pg; const list = STICKERS.slice(pg*10, pg*10 + 10); if (S.stickerPages.includes(pg) || !list.every(x => S.stickers[x.id])) return; S.stickerPages.push(pg); save(); grantReward({ g:150, s:2 }, "📒 Sticker page " + (pg+1) + " complete!"); },
   toggleJet: () => { S.classicJet = !S.classicJet; save(); renderProfile(); },
@@ -2466,6 +2571,16 @@ function finish(clean){
     $("doneBreak").innerHTML = "Custom levels are just for fun — no gems or XP, so nobody can farm the leaderboard 😉";
     if (ED.testing){ addBtn("Back to editor", openEditor, true); addBtn(clean ? "Test again" : "Try again", () => playCustom(L, true)); }
     else { addBtn(clean ? "Play again" : "Try again", () => playCustom(L, false), true); addBtn("My Levels", renderEditorMenu); addBtn("Home", goHome); }
+  } else if (mode === "battle" && BT.tier === 3){
+    const F = farmState(), grow = F.plots.filter(pl => pl && !farmReady(pl));
+    xp += 20 + BT.cleaned*2;
+    $("doneTitle").innerHTML = clean ? 'Farm <span>saved!</span> 🌾' : 'The monsters <span>got in!</span>';
+    $("doneName").textContent = "🌾 Farm Defense";
+    $("doneScore").textContent = BT.cleaned + " monsters chased away";
+    if (clean){ S.stats.defends = (S.stats.defends || 0) + 1; runGems += 50; grow.forEach(pl => pl.t0 -= pl.dur*0.25); $("doneBreak").innerHTML = `Your crops are safe and grew 25% faster!<br>+50 💎 defense bonus`; }
+    else { const v = grow.length ? pick(grow) : null; if (v) v.t0 = Math.min(Date.now(), v.t0 + v.dur*0.5); $("doneBreak").innerHTML = v ? `A monster nibbled your ${SEED(v.seed).name} — it lost half its growth.` : "Luckily there was nothing to eat!"; }
+    F.pest = null; save();
+    addBtn("Back to farm", renderFarm, true); addBtn("Home", goHome);
   } else if (mode === "battle"){
     const bt = BATTLES[BT.tier], rec = S.battle[BT.tier] || (S.battle[BT.tier] = { wins:0, best:0 });
     rec.best = Math.max(rec.best, clean ? bt.waves : BT.wave - 1);
