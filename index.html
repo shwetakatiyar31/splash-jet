@@ -173,7 +173,7 @@
   </div>
   <div class="overlay hidden" id="quiz"><div class="card" id="quizCard"></div></div>
   <div class="overlay hidden" id="reveal"><div id="confetti"></div><div class="card" id="revealCard"></div></div>
-  <div id="touch"><div class="grp"><button data-k="left" aria-label="Walk left">◀</button><button data-k="right" aria-label="Walk right">▶</button></div><div class="grp"><button data-k="jump" aria-label="Jump">⤒</button></div></div>
+  <div id="touch"><div class="grp"><button data-k="left" aria-label="Walk left">◀</button><button data-k="right" aria-label="Walk right">▶</button></div><div class="grp"><button data-k="dash" aria-label="Dash">💨</button><button data-k="emote" aria-label="Emote">😄</button><button data-k="jump" aria-label="Jump">⤒</button></div></div>
   <div id="edTop">
     <input type="text" id="edName" maxlength="24" placeholder="Level name" aria-label="Level name">
     <label style="font-size:12px;color:var(--dim)">🎨 <input type="range" id="edHue" min="0" max="359" aria-label="Background colour"></label>
@@ -253,7 +253,7 @@ const PERKS = {
   time:   { icon:"⏱️", f:v => `+${Math.round(5*v)}s on the timer` },
   gems:   { icon:"💎", f:v => `${Math.round(8*v)}% chance of double gems` },
   power:  { icon:"💥", f:v => `${Math.round(10*v)}% chance of double splash` },
-  bounce: { icon:"🦘", f:v => `Slime bounces cost ${Math.max(0, 2 - Math.round(v))}s` },
+  bounce: { icon:"🦘", f:v => `Falling in the slime costs only ${Math.max(0, 2 - Math.round(v)) + 1}s` },
 };
 const PACKS = {
   basic:  { name:"Basic Pack",  e:"📦", cost:40,  cur:"gems",   odds:{C:70,R:25,E:5,L:0},   shiny:0.03 },
@@ -394,7 +394,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stats:{} }, store(SAVE_KEY) || {});
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0 }, S.stats);
 const save = () => store(SAVE_KEY, S);
 
@@ -526,7 +526,7 @@ function updateMusicButton(){ const b = $("musicBtn"); if (b){ b.textContent = S
 
 // ================= world =================
 let plats = [], goos = [], items = [], balls = [], boss = null, worldW = 2000, hue = 210, bgStars = [];
-let fans = [], shake = 0, downBuf = 0;
+let fans = [], shake = 0, downBuf = 0, dashBuf = 0, gemRushT = 30, emote = null;
 let party = null, partyScore = 0, balloons = [], spawnT = 0, pw = {}, buddyTalk = "", buddyTalkT = 0;
 let mode = "level", levelIdx = 0, mod = null, opts = {}, perk = {}, tankMax = TANK, titanStartHp = 0;
 
@@ -607,6 +607,8 @@ function pound(plat){
   if (mode === "battle" && BT) for (const m of BT.monsters){ if (!m.dead && Math.hypot(m.x - P.x, m.y - P.y) < 120 + m.r){ hitMonster(m, 3, m.x > P.x ? 1 : -1); hit++; } }
   say(hit ? "GROUND POUND! 💥" : "POUND!", "#9be0ff");
 }
+const EMOTES = ["😄","😎","🥳","😮","❤️","🤪"];
+function doEmote(i){ if (!running) return; emote = { e: EMOTES[i % EMOTES.length], t: 1.6 }; tone(600 + i*80, 900 + i*80, 0.1, "sine", 0.05); if (buddyInfo()){ buddyTalk = pick(["Haha!","Yay!","Cool!","Wheee!","Love it!","Silly!"]); buddyTalkT = 1.2; } }
 function buddyCheer(){ if (buddyInfo() && Math.random() < 0.6){ buddyTalk = pick(["Yay!","Woo-hoo!","Splashy!","Nice!","Again!","Sparkly!","Wow!"]); buddyTalkT = 1; } }
 let hoop = null, gball = null, meteors = [], pHearts = 3, pInv = 0;
 function newHoop(){ const ps = groundPlats(); const p = pick(ps); hoop = { x: clamp(p.x + p.w/2 + (Math.random()-.5)*60, 80, worldW - 80), y: Math.max(130, p.y - 120 - Math.random()*60), base: p.y }; }
@@ -696,6 +698,8 @@ addEventListener("keydown", e => {
   if ((e.code === "ArrowUp" || e.code === "KeyW") && !e.repeat){ jumpBuf = 0.15; if (running) e.preventDefault(); }
   if (e.code === "ArrowDown" || e.code === "KeyS"){ if (running) e.preventDefault(); }
   if (e.code === "KeyQ"){ keys.aimL = true; pointer.active = false; }
+  if ((e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyC") && !e.repeat){ dashBuf = 0.15; }
+  if (/^Digit[1-6]$/.test(e.code) && running) doEmote(+e.code.slice(5) - 1);
   if (e.code === "KeyE"){ keys.aimR = true; pointer.active = false; }
   if (e.code === "Space" || e.code === "KeyX"){ keys.fire = true; if (running) e.preventDefault(); }
   if (e.code === "Escape" && running) quit();
@@ -711,8 +715,8 @@ addEventListener("keyup", e => {
 // touch buttons
 document.querySelectorAll("#touch button").forEach(b => {
   const k = b.dataset.k;
-  b.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); if (k === "jump"){ jumpBuf = 0.15; keys.jumpT = true; } else keys[k] = true; });
-  const off = e => { e.preventDefault(); if (k !== "jump") keys[k] = false; else keys.jumpT = false; };
+  b.addEventListener("pointerdown", e => { e.preventDefault(); e.stopPropagation(); if (k === "dash"){ dashBuf = 0.15; return; } if (k === "emote"){ doEmote(Math.floor(Math.random()*6)); return; } if (k === "jump"){ jumpBuf = 0.15; keys.jumpT = true; } else keys[k] = true; });
+  const off = e => { e.preventDefault(); if (k === "dash" || k === "emote") return; if (k !== "jump") keys[k] = false; else keys.jumpT = false; };
   b.addEventListener("pointerup", off); b.addEventListener("pointercancel", off); b.addEventListener("pointerleave", off);
 });
 
@@ -738,9 +742,9 @@ function blast(){
   if (P.cd > 0 || (P.tank < 1 && !pw.infinite)) return;
   P.cd = COOLDOWN; if (!pw.infinite) P.tank -= 1; shots++;
   const ax = Math.cos(P.aim), ay = Math.sin(P.aim), k0 = (P.sticky > 0 ? 0.6 : 1) * (pw.turbo ? 1.45 : 1);
-  P.vx -= ax * IMPULSE * k0; P.vy -= ay * IMPULSE * k0;
+  if (S.classicJet){ P.vx -= ax * IMPULSE * k0; P.vy -= ay * IMPULSE * k0; P.ground = null; }
+  else if (ay > 0.35){ P.vy -= ay * IMPULSE * 0.95 * k0; P.ground = null; }
   const sp = Math.hypot(P.vx, P.vy); if (sp > MAXV){ P.vx *= MAXV/sp; P.vy *= MAXV/sp; }
-  P.ground = null;
   const nd = pw.rainbow ? 5 : 3, spread = pw.rainbow ? 0.11 : 0.07;
   for (let k=0;k<nd;k++){ const a = P.aim + (k-(nd-1)/2)*spread; drops.push({ x:P.x + ax*22, y:P.y + ay*22, vx:Math.cos(a)*DROP_V*(0.9+(k%3)*0.07), vy:Math.sin(a)*DROP_V*(0.9+(k%3)*0.07), l:1.1, i:shots*5+k, rb: !!pw.rainbow }); }
   sfx.blast();
@@ -796,10 +800,15 @@ function update(dt){
   P.vx *= Math.pow(0.985, dt*60);
   // walking + jumping
   const mv = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), RUN = 230;
-  if (mv){ const acc = P.ground ? (P.ground.type === "ice" ? 500 : 1800) : 700; if (mv*P.vx < RUN) P.vx = mv > 0 ? Math.min(RUN, P.vx + acc*dt) : Math.max(-RUN, P.vx - acc*dt); if (!pointer.active && !keys.aimL && !keys.aimR) P.aim = mv > 0 ? Math.PI*0.62 : Math.PI*0.38; if (P.ground) P.walk = (P.walk || 0) + dt*14; }
+  if (mv){ const acc = P.ground ? (P.ground.type === "ice" ? 500 : 1800) : 700; if (mv*P.vx < RUN) P.vx = mv > 0 ? Math.min(RUN, P.vx + acc*dt) : Math.max(-RUN, P.vx - acc*dt); if (!pointer.active && !keys.aimL && !keys.aimR) P.aim = S.classicJet ? (mv > 0 ? Math.PI*0.62 : Math.PI*0.38) : (mv > 0 ? Math.PI*0.25 : Math.PI*0.75); if (P.ground) P.walk = (P.walk || 0) + dt*14; }
   if (P.ground) coyote = 0.1; else coyote -= dt;
   jumpBuf -= dt;
   if (jumpBuf > 0 && coyote > 0){ P.vy = -400; P.ground = null; coyote = 0; jumpBuf = 0; P.squish = 0.5; burst(P.x, P.y + R, "#ccd6ff", 6, 120); tone(300, 600, 0.12, "sine", 0.08); }
+  else if (jumpBuf > 0 && !P.ground && !P.dj && !P.pound && coyote <= 0){ P.dj = true; P.vy = Math.min(P.vy, -370); jumpBuf = 0; P.squish = 0.6; for (let k=0;k<14;k++){ const a = k/14*Math.PI*2; parts.push({ x:P.x, y:P.y + R, vx:Math.cos(a)*160, vy:Math.sin(a)*60, l:0.35, c: k%2 ? "#ffd166" : "#ffffff" }); } tone(500, 1000, 0.12, "sine", 0.08); }
+  dashBuf -= dt; if (P.dashCd > 0) P.dashCd -= dt; if (P.dashT > 0) P.dashT -= dt; if (P.respawnT > 0) P.respawnT -= dt;
+  if (dashBuf > 0 && !(P.dashCd > 0)){ const dd = mv || (Math.cos(P.aim) >= 0 ? 1 : -1); P.vx = dd*580; P.vy = Math.min(P.vy, -40); P.dashCd = 0.9; P.dashT = 0.2; dashBuf = 0; tone(700, 300, 0.15, "sawtooth", 0.05); for (let k=0;k<12;k++) parts.push({ x:P.x - dd*k*4, y:P.y + (Math.random()-.5)*14, vx:-dd*120, vy:0, l:0.3, c:"#9be0ff" }); }
+  if (P.dashT > 0 && Math.random() < 0.8) parts.push({ x:P.x, y:P.y + (Math.random()-.5)*16, vx:-Math.sign(P.vx)*80, vy:0, l:0.25, c: suitColor() });
+  if (!(P.dashT > 0) && Math.abs(P.vx) > RUN + 10 && !S.classicJet) P.vx *= Math.pow(0.9, dt*60);
   if (P.ground && !mv){ P.vx *= Math.pow(P.ground.type === "ice" ? 0.99 : 0.86, dt*60); }
   // ground pound
   downBuf -= dt;
@@ -824,14 +833,19 @@ function update(dt){
     if (c.ny < -0.6) grounded = p;
   }
   if (grounded && P.pound){ P.pound = false; pound(grounded); }
-  if (grounded && Math.abs(P.vy) < 60){ P.ground = grounded; P.vy = 0; P.safePlat = grounded; P.safeX = clamp(P.x, grounded.x + R + 4, grounded.x + grounded.w - R - 4); }
+  if (grounded && Math.abs(P.vy) < 60){ P.dj = false; P.ground = grounded; P.vy = 0; P.safePlat = grounded; P.safeX = clamp(P.x, grounded.x + R + 4, grounded.x + grounded.w - R - 4); }
   else if (!grounded) P.ground = null;
 
   if (P.y > SLIME_Y){
-    const pen = perk.bounce !== undefined ? perk.bounce : 2;
-    P.pound = false; P.y = SLIME_Y; P.vy = -720; P.vx = clamp((P.safeX - P.x) * 1.1, -320, 320);
-    burst(P.x, SLIME_Y, "#7be04a", 20); timeLeft = Math.max(0, timeLeft - pen); flash = 0.25; P.squish = 1;
-    say(pen ? `BOING! −${pen}s` : "BOING! (buddy saved you!)", "#ff8fd0"); sfx.boing();
+    const pen = perk.bounce !== undefined ? perk.bounce + 1 : 3;
+    burst(P.x, SLIME_Y, opts.lava ? "#ff9f43" : "#7be04a", 26, 300);
+    const sp = (P.safePlat && plats.includes(P.safePlat)) ? P.safePlat : plats[0];
+    P.pound = false; P.vx = 0; P.vy = 0; P.dj = false; P.squish = 1;
+    P.x = clamp(P.safeX, sp.x + R + 4, sp.x + sp.w - R - 4); P.y = sp.y - R - 2; P.ground = sp;
+    P.tank = 0; P.sticky = 1.5; P.respawnT = 1.2; pw = {};
+    timeLeft = Math.max(0, timeLeft - pen); flash = 0.35; shake = 0.2; S.stats.falls = (S.stats.falls || 0) + 1;
+    say(`SPLAT! Tank empty · −${pen}s`, "#ff8fd0"); tone(300, 80, 0.35, "sawtooth", 0.08);
+    burst(P.x, P.y, "#ffffff", 14, 180);
   }
 
   for (const it of items){
@@ -871,6 +885,11 @@ function update(dt){
   drops = drops.filter(d => d.l > 0);
   if (boss) updateBoss(dt);
   if (mode === "party") updateParty(dt);
+  if (mode === "level" || mode === "daily"){
+    gemRushT -= dt;
+    if (gemRushT <= 0){ gemRushT = 35 + Math.random()*25; if (Math.random() < 0.6){ say("🌠 Shooting star! Catch the falling gems!", "#ffd166"); tone(1200, 400, 0.6, "sine", 0.05); for (let k=0;k<8;k++) items.push({ type:"gem", x: clamp(P.x - 260 + k*75 + (Math.random()-.5)*30, 30, worldW - 30), y: 40 - k*18, bob: k, fall: 85 + Math.random()*30, rare: k === 4 }); for (let k=0;k<40;k++) parts.push({ x: camX + W - k*24, y: 50 + k*3, vx:-300, vy:40, l:0.6, c: k%2 ? "#fff3b0" : "#ffd166" }); } }
+    for (const it of items) if (it.fall && !it.taken){ it.y += it.fall*dt; if (it.y > SLIME_Y) it.taken = true; }
+  }
   if (mode === "battle" && BT) updateBattle(dt);
   if (mode !== "boss" && mode !== "titan" && mode !== "party" && mode !== "battle" && goos.every(g => g.hp <= 0)){ endT = 1.2; confetti(); sfx.win(); say("ALL CLEAN! ✨", "#ffd166"); }
 }
@@ -1256,6 +1275,27 @@ function renderBattle(){
     h += `<div class="item${n ? "" : " locked"}"><span class="sw" style="background:${n ? d.c : "#333a66"};font-size:16px">${n ? "👀" : "?"}</span><b>${n ? d.name : "???"}</b><span class="p">${n ? n + " cleaned" : "Not met yet"}</span><small style="color:var(--dim);font-size:11px">${n ? d.desc : ""}</small>${ready ? `<button class="small gold" data-act="bookClaim" data-arg="${k}">Claim 75 💎</button>` : S.bookClaimed.includes(k) ? "✅" : n ? `<span class="p">${Math.min(n,25)}/25</span>` : ""}</div>`;
   }
   panel("⚔️ Monster Battle", h + "</div>", renderBattle);
+}
+
+// ================= sticker album =================
+const STICKERS = "🚀 Rocket|🛸 UFO|🌙 Moon|⭐ Star|🪐 Planet|☄️ Comet|🌈 Rainbow|🍩 Donut|🍕 Pizza|🧁 Cupcake|🍦 Ice Cream|🍉 Melon|🎈 Balloon|🎸 Guitar|🎨 Paint|🏆 Trophy|🎮 Game|🧸 Teddy|🦄 Unicorn|🐳 Whale|🐙 Octopus|🦋 Butterfly|🌻 Sunflower|🍄 Mushroom|💎 Diamond|🔮 Crystal Ball|🎁 Present|🧩 Puzzle|🛹 Skateboard|👑 Crown".split("|").map((t, i) => ({ e: t.split(" ")[0], name: t.slice(t.indexOf(" ") + 1), id: i, rare: i >= 24 }));
+function giveSticker(){
+  const pool = STICKERS.filter(x => Math.random() < (x.rare ? 0.35 : 1));
+  const st = pick(pool.length ? pool : STICKERS), had = S.stickers[st.id] || 0;
+  S.stickers[st.id] = had + 1;
+  if (had){ S.gems += 10; } save();
+  queueReveal({ title: had ? "📒 Sticker (duplicate)" : "📒 NEW STICKER!", cards:[{ e: st.e, name: st.name, c: st.rare ? "#ffd166" : "#5cc8ff", sub: had ? "Already have it · +10 💎" : (st.rare ? "RARE sticker!" : "Added to your album") }] });
+}
+function renderStickers(){
+  const got = STICKERS.filter(x => S.stickers[x.id]).length;
+  let h = `<p class="sub">Win stickers by finishing levels, battles and party games! Complete a page of 10 for a prize. Got ${got}/${STICKERS.length}.</p>`;
+  for (let pg=0; pg<3; pg++){
+    const list = STICKERS.slice(pg*10, pg*10 + 10), done = list.every(x => S.stickers[x.id]), claimed = S.stickerPages.includes(pg);
+    h += `<div class="sec">PAGE ${pg+1} · ${list.filter(x => S.stickers[x.id]).length}/10 <span>${done && !claimed ? `<button class="small gold" data-act="stickerPage" data-arg="${pg}">Claim 150 💎 + 2 ✨</button>` : claimed ? "✅ Page complete" : "Prize: 150 💎 + 2 ✨"}</span></div><div class="items" style="grid-template-columns:repeat(auto-fill,minmax(78px,1fr))">`;
+    for (const x of list){ const n = S.stickers[x.id] || 0; h += `<div class="award${n ? "" : " no"}" style="${x.rare && n ? "border-color:#ffd166" : ""}"><span class="em">${n ? x.e : "❔"}</span><small>${n ? esc(x.name) + (n > 1 ? " ×" + n : "") : (x.rare ? "Rare" : "???")}</small></div>`; }
+    h += `</div>`;
+  }
+  panel("📒 Sticker Album", h, renderStickers);
 }
 
 // ================= level editor =================
@@ -1766,9 +1806,12 @@ function render(){
     ctx.strokeStyle = "rgba(92,200,255,.35)"; ctx.setLineDash([4,7]); ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(P.x - cx + ax*26, P.y + ay*26); ctx.lineTo(P.x - cx + ax*90, P.y + ay*90); ctx.stroke(); ctx.setLineDash([]);
     ctx.strokeStyle = "rgba(255,209,102,.55)"; ctx.lineWidth = 3;
-    const ex = P.x - cx - ax*46, ey = P.y - ay*46;
-    ctx.beginPath(); ctx.moveTo(P.x - cx - ax*24, P.y - ay*24); ctx.lineTo(ex, ey); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(P.aim+0.5)*8, ey + Math.sin(P.aim+0.5)*8); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(P.aim-0.5)*8, ey + Math.sin(P.aim-0.5)*8); ctx.stroke();
+    if (S.classicJet || ay > 0.35){
+    const A = S.classicJet ? P.aim : Math.PI/2, bx2 = Math.cos(A), by2 = Math.sin(A);
+    const ex = P.x - cx - bx2*46, ey = P.y - by2*46;
+    ctx.beginPath(); ctx.moveTo(P.x - cx - bx2*24, P.y - by2*24); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(A+0.5)*8, ey + Math.sin(A+0.5)*8); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(A-0.5)*8, ey + Math.sin(A-0.5)*8); ctx.stroke();
+    }
     const mag = Math.max(perk.magnet || 0, pw.magnet ? 180 : 0);
     if (mag){ ctx.strokeStyle = pw.magnet ? "rgba(255,107,138,.3)" : "rgba(255,143,208,.12)"; ctx.lineWidth = pw.magnet ? 2 : 1; ctx.beginPath(); ctx.arc(P.x - cx, P.y, mag, 0, 7); ctx.stroke(); }
     if (P.pound) parts.push({ x:P.x + (Math.random()-.5)*10, y:P.y - 10, vx:0, vy:-80, l:0.25, c:"#9be0ff" });
@@ -1777,7 +1820,9 @@ function render(){
   drawBuddy(P.x - cx, P.y);
   if (mode === "party" && party === "meteor" && pInv > 0) ctx.globalAlpha = Math.floor(tAnim*16) % 2 ? 0.35 : 0.85;
   if (mode === "battle" && BT && BT.inv > 0) ctx.globalAlpha = Math.floor(tAnim*16) % 2 ? 0.35 : 0.85;
+  if (P.respawnT > 0) ctx.globalAlpha = Math.floor(tAnim*14) % 2 ? 0.4 : 0.9;
   drawAstronaut(P.x - cx, P.y); ctx.globalAlpha = 1;
+  if (emote && emote.t > 0){ emote.t -= 1/60; const ey = P.y - 48 - (1.6 - emote.t)*10; ctx.save(); ctx.globalAlpha = Math.min(1, emote.t*2); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(P.x - cx, ey, 18, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(P.x - cx - 5, ey + 15); ctx.lineTo(P.x - cx + 5, ey + 15); ctx.lineTo(P.x - cx, ey + 24); ctx.fill(); ctx.font = "22px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emote.e, P.x - cx, ey + 1); ctx.restore(); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; }
 
   for (const q of parts){ ctx.globalAlpha = Math.min(1, q.l*2); ctx.fillStyle = q.c; ctx.fillRect(q.x - cx - 2, q.y - 2, 4, 4); }
   ctx.globalAlpha = 1;
@@ -2003,6 +2048,7 @@ function renderHome(){
       <button class="tile" data-act="passPanel">${bdg(b.pass)}<span class="ic">⭐</span><b>Star Pass</b><small>Lv ${L} rewards</small></button>
       <button class="tile" data-act="seasonPanel" style="border-color:#ffd166">${bdg(b.season)}<span class="ic">🎟️</span><b>Season Pass</b><small>Tier ${seasonTier()}/30 · ${seasonEnds()} left</small></button>
       <button class="tile" data-act="codesPanel"><span class="ic">🔑</span><b>Codes</b><small>Secret rewards</small></button>
+      <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="chatPanel"><span class="ic">💬</span><b>Chat</b><small>Local chat</small></button>
       <button class="tile" data-act="palsPanel">${bdg(b.pals)}<span class="ic">🐾</span><b>Space Pals</b><small>Packs · eggs · buddy</small></button>
@@ -2012,7 +2058,7 @@ function renderHome(){
       <button class="tile" data-act="profilePanel"><span class="ic">👩‍🚀</span><b>Profile</b><small>Name · stats</small></button>
     </div>
     <div class="note" id="homeNote"></div>
-    <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br>Spray <b>down</b> to fly up · spray <b>left</b> to go right · land on rock to refill</div>`;
+    <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br><kbd>↑</kbd><kbd>↑</kbd> double jump · <kbd>Shift</kbd> dash · <kbd>1</kbd>–<kbd>6</kbd> emotes<br>Spray <b>down</b> to hover up · land on rock to refill · falling in the slime empties your tank!</div>`;
   bind($("homeCard"));
   $("muteBtn").textContent = S.muted ? "🔇" : "🔊";
   updateMusicButton();
@@ -2114,7 +2160,8 @@ function renderProfile(){
   let h = `<div class="row" style="margin-bottom:12px"><input type="text" id="nameIn" maxlength="14" value="${esc(S.name)}" aria-label="Your name"><button class="primary" data-act="saveName">Save name</button></div>`;
   h += `<div class="sec">TITLE</div><div class="row">${titles.map(t => `<button class="small ${(S.title || "Space Cleaner") === t ? "gold" : ""}" data-act="setTitle" data-arg="${esc(t)}">${esc(t)}</button>`).join("")}</div>`;
   h += `<div class="sec">QUESTION GRADE <span>for crystals &amp; Brain Bubbles</span></div><div class="row">${[1,2,3,4,5,6,7,8].map(g => `<button class="small ${S.grade === g ? "gold" : ""}" data-act="setGrade" data-arg="${g}">Grade ${g}</button>`).join("")}</div>
-    <div class="row" style="margin-top:8px"><button class="small ${S.quizOn ? "gold" : ""}" data-act="toggleQuiz">❓ Question crystals in levels: ${S.quizOn ? "ON" : "OFF"}</button></div>`;
+    <div class="row" style="margin-top:8px"><button class="small ${S.quizOn ? "gold" : ""}" data-act="toggleQuiz">❓ Question crystals in levels: ${S.quizOn ? "ON" : "OFF"}</button></div>
+    <div class="row" style="margin-top:8px"><button class="small ${S.classicJet ? "gold" : ""}" data-act="toggleJet">🚀 Classic jet push (spraying pushes you around): ${S.classicJet ? "ON" : "OFF"}</button></div>`;
   h += `<div class="sec">STATS</div><div class="stats">
     <div>Rank<b>${rk[2]} ${rk[1]}</b></div><div>Level<b>${L}</b></div>
     <div>Goo cleaned<b>${S.stats.goo}</b></div><div>Gems found<b>${S.stats.gems}</b></div>
@@ -2221,6 +2268,9 @@ function rain(n, best){
 const ACT = {
   daily: () => startDaily(),
   map: () => renderMap(),
+  stickersPanel: () => renderStickers(),
+  stickerPage: pg => { pg = +pg; const list = STICKERS.slice(pg*10, pg*10 + 10); if (S.stickerPages.includes(pg) || !list.every(x => S.stickers[x.id])) return; S.stickerPages.push(pg); save(); grantReward({ g:150, s:2 }, "📒 Sticker page " + (pg+1) + " complete!"); },
+  toggleJet: () => { S.classicJet = !S.classicJet; save(); renderProfile(); },
   editorMenu: () => renderEditorMenu(),
   edNew: () => { ED.data = blankLevel(); ED.editIdx = -1; ED.history = []; openEditor(); },
   edEdit: i => { const L = S.myLevels[+i]; if (!L) return; ED.data = JSON.parse(JSON.stringify(L)); ED.editIdx = +i; ED.history = []; openEditor(); },
@@ -2342,7 +2392,7 @@ function applyPerks(){
   if (b.p.perk === "power") perk.power = 10*v;
   if (b.p.perk === "bounce") perk.bounce = Math.max(0, 2 - Math.round(v));
 }
-function begin(limit){
+function begin(limit){ gemRushT = 25 + Math.random()*15; emote = null; P.dj = false; P.dashCd = 0; P.dashT = 0; P.respawnT = 0;
   applyPerks(); timeLimit = limit + (perk.time || 0); timeLeft = timeLimit;
   resetPlayer(); camX = 0; drops = []; parts = []; floats = []; shots = 0; runGems = 0; runGoo = 0; endT = 0; combo = 0; running = true; msgT = 0; pw = {}; partyScore = 0; buddyTalkT = 0; runTreasure = false;
   buddyPos.x = P.x; buddyPos.y = P.y; S.stats.runs++;
@@ -2505,7 +2555,8 @@ function finish(clean){
   addXP(xp); checkAwards(); save(); syncLB();
   $("doneNote").innerHTML = notes.map(esc).join("<br>");
   show("done");
-  if (pendingRewards.length){ currentPanel = () => show("done"); setTimeout(() => { pendingRewards.forEach(([r, t]) => r === "battle" ? battleChest(t) : grantReward(r, t)); }, 700); }
+  if (mode !== "custom" && (clean || mode === "party" || mode === "titan") && Math.random() < 0.5) pendingRewards.push(["sticker"]);
+  if (pendingRewards.length){ currentPanel = () => show("done"); setTimeout(() => { pendingRewards.forEach(([r, t]) => r === "battle" ? battleChest(t) : r === "sticker" ? giveSticker() : grantReward(r, t)); }, 700); }
 }
 
 // ================= wiring =================
