@@ -1087,6 +1087,7 @@ async function cloudSaveNow(){ if (!isGoogle()) return; try { await FB.fdb.colle
 async function cloudGet(){ try { const doc = await FB.fdb.collection("splashSaves").doc(FB.user.uid).get(); if (!doc.exists) return null; const o = doc.data(); return { at: o.at || 0, save: JSON.parse(o.d) }; } catch(e){ return null; } }
 async function cloudLoadOnStart(){ const c = await cloudGet(); if (c && c.at > (S.savedAt || 0) + 1000){ store(SAVE_KEY, c.save); location.reload(); } else cloudSaveNow(); }
 async function googleSignIn(){
+  toast("Opening Google sign-in…");
   if (!FB.auth){ toast("Can't connect right now — check your internet"); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
   let user = null, existing = false;
@@ -1096,7 +1097,7 @@ async function googleSignIn(){
       const cred = e.credential || (firebase.auth.GoogleAuthProvider.credentialFromError && firebase.auth.GoogleAuthProvider.credentialFromError(e));
       try { user = cred ? (await FB.auth.signInWithCredential(cred)).user : (await FB.auth.signInWithPopup(provider)).user; existing = true; } catch(e2){ toast("Google sign-in didn't work: " + (e2.code || "error")); return; }
     } else if (e && e.code === "auth/popup-closed-by-user"){ return; }
-    else { toast("Google sign-in didn't work: " + (e && e.code || "error")); console.warn(e); return; }
+    else { const c = e && e.code || "error"; toast(c === "auth/unauthorized-domain" ? "Google sign-in isn't allowed on this website yet (add it in Firebase → Authentication → Settings → Authorized domains)" : c === "auth/operation-not-allowed" ? "Google sign-in is turned off (Firebase → Authentication → Sign-in method → Google)" : c === "auth/popup-blocked" ? "Your browser blocked the Google pop-up — allow pop-ups for this site and try again" : "Google sign-in didn't work: " + c); console.warn(e); return; }
   }
   FB.user = user; LB.uid = user.uid; LB.lastSent = ""; LB.readOnly = false;
   const c = existing ? await cloudGet() : null;
