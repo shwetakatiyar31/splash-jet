@@ -188,6 +188,7 @@
   </div>
   <div id="edBot"></div>
   <div id="toasts" aria-live="polite"></div>
+  <div class="overlay hidden" id="banned" style="z-index:20"><div class="card"><div style="font-size:64px">🚫</div><h2>This account is banned</h2><p class="sub">The game owner banned this account for breaking the rules, so it can't play, chat or show on the leaderboard.<br>If you think this is a mistake, ask a grown-up to contact the game owner.</p></div></div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -402,9 +403,10 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], stats:{} }, store(SAVE_KEY) || {});
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], stats:{} }, store(SAVE_KEY) || {});
 S.stats = Object.assign({ gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
-const save = () => { S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
+var SJ_WIPED = false;
+const save = () => { if (SJ_WIPED) return; S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
 
 // ---- progression helpers ----
 const levelThreshold = L => 30 * L * (L + 1);      // xp needed to go from L to L+1 (cumulative)
@@ -1036,7 +1038,7 @@ function lbPayload(){
   return { user: String(S.username || "").slice(0, 14), seen: Math.floor(Date.now() / 60000), name: String(S.name || "Astro").slice(0, 14), av: bud ? bud.p.e : "👩‍🚀", title: String(S.title || "Space Cleaner").slice(0, 24), lvl: playerLevel(), xp: S.xp, goo: S.stats.goo, stars: totalStars(), monsters: S.stats.monsters, pals: Object.keys(S.pals).length, party: Object.values(S.partyBest || {}).reduce((a,b) => a + b, 0), daily: S.dailyBest[today()] || 0, dailyDate: today(), week: weekIdx(), weekGoo: S.weekGoo && S.weekGoo.w === weekIdx() ? S.weekGoo.n : 0 };
 }
 async function syncLB(){
-  if (!LB.db || !LB.uid || LB.readOnly) return;
+  if (!LB.db || !LB.uid || LB.readOnly || BANNED) return;
   if (LB.writing){ LB.again = true; return; }
   const body = lbPayload(), json = JSON.stringify(body);
   if (json === LB.lastSent) return;
@@ -1046,7 +1048,7 @@ async function syncLB(){
   LB.writing = false;
   if (LB.again){ LB.again = false; syncLB(); }
 }
-function lbSorted(tab){ const t = LB_TABS.find(x => x.id === tab); return LB.rows.slice().filter(r => t.val(r) > 0).sort((a,b) => t.val(b) - t.val(a)); }
+function lbSorted(tab){ const t = LB_TABS.find(x => x.id === tab); return LB.rows.slice().filter(r => t.val(r) > 0 && !isBanned(r.id)).sort((a,b) => t.val(b) - t.val(a)); }
 function lbMyRankText(){
   if (LB.status !== "ready" || !LB.loaded) return LB.status === "off" || LB.status === "error" ? "Offline" : "Loading…";
   const list = lbSorted("level"), i = list.findIndex(r => r.id === LB.uid);
@@ -1122,6 +1124,7 @@ function pairRoom(a, b){ return [a, b].sort().join("_"); }
 function chatFriendOf(room){ if (!room || !LB.uid) return ""; const parts = String(room).split("_"); if (parts.length !== 2 || !parts.includes(LB.uid)) return ""; const f = parts[0] === LB.uid ? parts[1] : parts[0]; return FR.list.includes(f) ? f : ""; }
 function friendsConnect(){
   FR.unsubs.forEach(u => { try { u(); } catch(e){} }); FR.unsubs = []; FR.list = []; FR.reqIn = []; FR.reqOut = []; FR.loaded = false; chatWatchSync();
+  modConnect();
   if (!FB.fdb || !LB.uid) return;
   const me = LB.uid, rerender = () => { if (currentPanel === renderFriends && !$("panel").classList.contains("hidden")) renderFriends(); else { const t = document.querySelector('[data-act="friendsPanel"] small'); if (t) t.textContent = FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"; } };
   FR.unsubs.push(FB.fdb.collection("splashFriends").doc(me).onSnapshot(d => { FR.list = (d.exists && Array.isArray(d.data().list)) ? d.data().list : []; FR.loaded = true; chatWatchSync(); if (CHAT.room && !chatFriendOf(CHAT.room)){ S.chatRoom = ""; save(); chatConnect(); } rerender(); }, () => {}));
@@ -1137,6 +1140,9 @@ async function claimUsername(raw){
   const u = String(raw || "").trim().toLowerCase();
   if (!/^[a-z0-9_]{3,14}$/.test(u)) return "Usernames are 3–14 letters, numbers or _ (no spaces).";
   if (!FB.fdb || !LB.uid) return "Can't connect right now.";
+  if (u !== OWNER_NAME && /owner|admin|moderator|splashjet|blastjet/.test(u)) return "Sorry, that username is reserved — try another!";
+  if (S.username === OWNER_NAME && u !== OWNER_NAME && LB.owner) return "You're the game owner — keep @" + OWNER_NAME + " so you keep your owner tools!";
+  if (BANNED) return "This account is banned.";
   const ref = FB.fdb.collection("splashNames").doc(u);
   try {
     const d = await ref.get();
@@ -1151,6 +1157,7 @@ async function sendFriendRequest(raw){
   if (!S.username) return "Pick your own username first!";
   if (!/^[a-z0-9_]{3,14}$/.test(u)) return "That doesn't look like a username.";
   if (u === S.username) return "That's you! 😄";
+  if (BANNED) return "This account is banned.";
   try {
     const d = await FB.fdb.collection("splashNames").doc(u).get();
     if (!d.exists) return "Nobody has the username @" + u + " yet.";
@@ -1189,7 +1196,7 @@ function renderLeaderboard(){
     if (!list.length) h += `<p class="sub">No scores here yet — play a game to be the first! 🚀</p>`;
     list.forEach((r, i) => {
       const me = r.id === LB.uid, medal = ["🥇","🥈","🥉"][i] || "#" + (i + 1);
-      h += `<div class="tier" style="${me ? "border-color:#5cc8ff;background:linear-gradient(90deg,#1d4f7a,#1a2150)" : i < 3 ? "border-color:#ffd16688" : ""}"><span class="lv" style="width:40px;font-size:${i < 3 ? 22 : 14}px">${medal}</span><span style="font-size:24px">${esc(r.av || "👩‍🚀")}</span><span class="rw"><b>${esc(r.name || "Astro")}</b>${me ? " <small style='color:#5cc8ff'>(you)</small>" : ""}<br><small style="color:var(--gold)">${esc(r.title || "")}</small></span><b style="font-family:ui-monospace,monospace;font-size:14px">${esc(t.show(r))}</b>${LB.owner && !me ? `<button class="small" data-act="lbRemove" data-arg="${esc(r.id)}" title="Remove this player from the board">✕</button>` : ""}</div>`;
+      h += `<div class="tier" style="${me ? "border-color:#5cc8ff;background:linear-gradient(90deg,#1d4f7a,#1a2150)" : i < 3 ? "border-color:#ffd16688" : ""}"><span class="lv" style="width:40px;font-size:${i < 3 ? 22 : 14}px">${medal}</span><span style="font-size:24px">${esc(r.av || "👩‍🚀")}</span><span class="rw"><b>${esc(r.name || "Astro")}</b>${r.user === OWNER_NAME ? ` <small style="background:#ff6b6b;color:#fff;border-radius:6px;padding:0 5px">🛡️ OWNER</small>` : ""}${me ? " <small style='color:#5cc8ff'>(you)</small>" : ""}<br><small style="color:var(--gold)">${esc(r.title || "")}</small></span><b style="font-family:ui-monospace,monospace;font-size:14px">${esc(t.show(r))}</b>${LB.owner && !me ? `<button class="small" data-act="lbRemove" data-arg="${esc(r.id)}" title="Remove this player from the board">✕</button>` : ""}</div>`;
     });
     const myIdx = lbSorted(tab).findIndex(r => r.id === LB.uid);
     h += `<p class="sub" style="margin-top:10px">${myIdx >= 0 ? `You're <b>#${myIdx + 1}</b> on this board. ` : "Play to get on this board! "}${LB.readOnly ? "Your scores couldn't be posted right now." : "Your scores update after every game."}<br>Everyone who plays this game appears here. ${S.name === "Astro" ? "<b>Tip:</b> set your own name in 👩‍🚀 Profile!" : ""}${LB.owner ? " As the owner, you can remove a player with ✕." : ""}</p>`;
@@ -2469,6 +2476,7 @@ function renderHome(){
       <div class="tt">${esc(S.title || "Space Cleaner")}${S.username ? ` · <span style="color:var(--water)">@${esc(S.username)}</span>` : ""}</div><div class="xpbar"><i style="width:${pct}%"></i></div></div>
       ${isGoogle() ? `<span title="${esc(FB.user.email || "")}" style="font-size:12px;color:#8dff5a;text-align:right">☁️ Saved<br>to Google</span>` : `<button class="small gold" data-act="googleIn" title="Save your progress with your Gmail">🔐 Save with<br>Google</button>`}</div>
     <div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">🔥 ${S.streak}</span><span class="pill">🐾 ${Object.keys(S.pals).length}/${PALS.length}</span></div>
+    ${MOD.news && MOD.news.t ? `<div class="note" style="margin:0 0 10px;background:linear-gradient(90deg,#4a1a2a,#1a2150);border:1px solid #ff6b6b88;border-radius:12px;padding:8px 12px;color:#fff">📢 <b>News from the owner:</b> ${esc(MOD.news.t)}</div>` : ""}
     <div class="note" style="margin:0 0 10px;background:linear-gradient(90deg,#3a2e10,#1a2150);border:1px solid #ffd16666;border-radius:12px;padding:8px 12px">🎪 This week: ${weekEvent().icon} <b>${weekEvent().name}</b> — ${weekEvent().desc}</div>
     <div class="play">
       <button class="tile hot" data-act="daily"><span class="ic">🛰️</span><b>Daily Outpost #${dayNumber()}</b><small>${m.icon} ${m.name}: ${m.desc}<br>${doneToday ? "✅ Shard collected today" : "Win a ✨ shard + 50 💎"}</small></button>
@@ -2498,6 +2506,7 @@ function renderHome(){
       <button class="tile" data-act="lbPanel" style="border-color:#ffd166"><span class="ic">🏆</span><b>Leaderboard</b><small>${lbMyRankText()}</small></button>
       <button class="tile" data-act="awardsPanel"><span class="ic">🏅</span><b>Awards</b><small>${S.awards.length}/${AWARDS.length}</small></button>
       <button class="tile" data-act="profilePanel"><span class="ic">👩‍🚀</span><b>Profile</b><small>Name · stats</small></button>
+      ${LB.owner ? `<button class="tile" data-act="ownerPanel" style="border-color:#ff6b6b;background:linear-gradient(135deg,#4a1a1a,#1a1a4a)">${bdg(MOD.reports.length)}<span class="ic">🛡️</span><b>Owner Tools</b><small>Ban · delete · gifts</small></button>` : ""}
     </div>
     <div class="note" id="homeNote"></div>
     <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br><kbd>↑</kbd><kbd>↑</kbd> double jump · <kbd>Shift</kbd> dash · <kbd>1</kbd>–<kbd>6</kbd> emotes<br>Spray <b>down</b> to hover up · land on rock to refill · falling in the slime empties your tank!</div>`;
@@ -2641,6 +2650,109 @@ function renderSeason(){
   }
   panel("🎟️ Season Pass", h, renderSeason);
 }
+// ================= owner tools: bans, deletes, news, gifts, reports =================
+const OWNER_NAME = "splashjetowner";
+let BANNED = false;
+const MOD = { bans:{}, unsubs:[], news:null, mail:[], reports:[], q:"", look:null, confirm:"", repUnsub:null };
+function isBanned(uid){ const b = MOD.bans[uid]; return !!(b && b.banned); }
+function modConnect(){
+  MOD.unsubs.forEach(u => { try { u(); } catch(e){} }); MOD.unsubs = []; LB.owner = false; modReports(false);
+  if (!FB.fdb || !LB.uid) return;
+  const me = LB.uid, home = () => { if (!$("home").classList.contains("hidden")) renderHome(); };
+  MOD.unsubs.push(FB.fdb.collection("splashBans").onSnapshot(snap => { const b = {}; snap.docs.forEach(d => b[d.id] = d.data()); MOD.bans = b; modCheckMe(); refreshLB(); if (currentPanel === renderOwner && !$("panel").classList.contains("hidden")) renderOwner(); }, () => {}));
+  MOD.unsubs.push(FB.fdb.collection("splashNames").doc(OWNER_NAME).onSnapshot(d => { const was = LB.owner; LB.owner = !!(d.exists && d.data().uid === me); if (was !== LB.owner){ modReports(LB.owner); home(); } }, () => {}));
+  MOD.unsubs.push(FB.fdb.collection("splashNews").doc("main").onSnapshot(d => { MOD.news = d.exists ? d.data() : null; home(); }, () => {}));
+  MOD.unsubs.push(FB.fdb.collection("splashMail").doc(me).onSnapshot(d => { MOD.mail = d.exists && Array.isArray(d.data().gifts) ? d.data().gifts : []; modMail(); }, () => {}));
+}
+function modReports(on){
+  if (MOD.repUnsub){ try { MOD.repUnsub(); } catch(e){} MOD.repUnsub = null; } MOD.reports = [];
+  if (!on || !FB.fdb) return;
+  MOD.repUnsub = FB.fdb.collection("splashReports").limit(100).onSnapshot(snap => { MOD.reports = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (b.at || 0) - (a.at || 0)); if (currentPanel === renderOwner && !$("panel").classList.contains("hidden")) renderOwner(); else if (!$("home").classList.contains("hidden")) renderHome(); }, () => {});
+}
+function modCheckMe(){
+  const b = MOD.bans[LB.uid];
+  if (b && b.wipe && store("sj-wiped") !== b.wipe){ store("sj-wiped", b.wipe); SJ_WIPED = true; try { localStorage.removeItem(SAVE_KEY); } catch(e){} MOD.wiped = true; try { location.reload(); } catch(e){} return; }
+  const was = BANNED; BANNED = !!(b && b.banned);
+  if (BANNED){ running = false; pointer.down = false; $("banned").classList.remove("hidden"); }
+  else if (was){ $("banned").classList.add("hidden"); LB.lastSent = ""; syncLB(); goHome(); }
+}
+function modMail(){
+  for (const m of MOD.mail){
+    if (!m || !m.id || S.mailClaimed.includes(m.id)) continue;
+    S.mailClaimed = S.mailClaimed.concat([m.id]).slice(-100);
+    grantReward({ g: clamp(Math.round(+m.g || 0), 0, 5000), s: clamp(Math.round(+m.s || 0), 0, 50) }, "📬 A gift from the game owner!");
+    if (m.msg) toast("📬 " + String(m.msg).slice(0, 60));
+  }
+}
+function modPlayers(){
+  const out = [], seen = {};
+  const add = r => { if (!r || !r.id || r.id === LB.uid || seen[r.id]) return; seen[r.id] = 1; out.push(r); };
+  if (MOD.look) add(MOD.look);
+  LB.rows.forEach(add);
+  Object.keys(MOD.bans).forEach(id => { const b = MOD.bans[id]; if (b.banned) add({ id, name: b.name || "Player", user: b.user || "", gone:true }); });
+  const q = MOD.q.toLowerCase();
+  return out.filter(r => !q || r === MOD.look || String(r.name || "").toLowerCase().includes(q) || String(r.user || "").includes(q)).sort((a, b) => (isBanned(b.id) - isBanned(a.id)) || ((b.seen || 0) - (a.seen || 0)));
+}
+function renderOwner(){
+  if (!LB.owner){ goHome(); return; }
+  const nowMin = Math.floor(Date.now() / 60000), list = modPlayers();
+  let h = `<p class="sub">🛡️ Only <b>@${OWNER_NAME}</b> can see this page. <b>Ban</b> stops a player from playing, chatting and being on the leaderboard (you can unban later). <b>Delete</b> wipes their progress, username and friends — it can't be undone.</p>`;
+  h += `<div class="sec">📢 NEWS FOR EVERYONE <span>Shows on every player's home screen</span></div><div class="row"><input type="text" id="newsIn" maxlength="120" value="${esc(MOD.news && MOD.news.t || "")}" placeholder="e.g. Double gems this weekend!" aria-label="Announcement" style="flex:1;min-width:200px"><button class="primary" data-act="modNews">Post</button>${MOD.news ? `<button class="small" data-act="modNewsClear">Remove</button>` : ""}</div>`;
+  if (MOD.reports.length){
+    h += `<div class="sec">🚩 REPORTS <span>${MOD.reports.length}</span></div>`;
+    MOD.reports.slice(0, 20).forEach(r => { const b = isBanned(r.who); h += `<div class="quest" style="border-color:#ff6b6b"><span class="ic">🚩</span><div class="body"><b>${esc(r.whoName || "Player")}</b> ${r.whoUser ? `<small>@${esc(r.whoUser)}</small>` : ""}<br><small>“${esc(r.why || "")}” — from ${esc(r.byName || "someone")}${r.last ? `<br>Last message: “${esc(String(r.last).slice(0, 80))}”` : ""}</small></div>${b ? `<span class="pill">🚫 Banned</span>` : `<button class="small" data-act="modBan" data-arg="${esc(r.who)}" style="background:#ff6b6b;color:#fff">🚫 Ban</button>`}<button class="small" data-act="modDismiss" data-arg="${esc(r.id)}">✓ Done</button></div>`; });
+  }
+  h += `<div class="sec">👥 PLAYERS <span>${list.length}</span></div><div class="row"><input type="text" id="modQ" maxlength="20" value="${esc(MOD.q)}" placeholder="Search name or @username" aria-label="Search players" autocomplete="off" style="flex:1;min-width:200px"><button class="primary" data-act="modSearch">🔎 Search</button>${MOD.q ? `<button class="small" data-act="modClear">Show all</button>` : ""}</div>`;
+  if (!list.length) h += `<p class="sub" style="margin-top:8px">${MOD.q ? "Nobody found. Type their exact @username and tap Search." : "No other players yet."}</p>`;
+  list.slice(0, 60).forEach(r => {
+    const b = isBanned(r.id), online = r.seen && nowMin - r.seen <= 3, del = MOD.confirm === r.id;
+    h += `<div class="quest" style="${b ? "border-color:#ff6b6b;opacity:.85" : ""}"><span class="ic" style="font-size:26px">${b ? "🚫" : esc(r.av || "👩‍🚀")}</span><div class="body"><b>${esc(r.name || "Player")}</b> <small style="color:var(--dim)">${r.user ? "@" + esc(r.user) : "no username"}</small><br><small>${b ? "🚫 BANNED" : online ? "🟢 Playing now" : "⚪ Offline"}${r.lvl ? " · Lv " + r.lvl : ""}${r.gone ? " · not on leaderboard" : ""}</small></div>
+      ${b ? `<button class="small primary" data-act="modUnban" data-arg="${esc(r.id)}">✅ Unban</button>` : `<button class="small" data-act="modBan" data-arg="${esc(r.id)}" style="background:#ff6b6b;color:#fff">🚫 Ban</button>`}
+      <button class="small gold" data-act="modGift" data-arg="${esc(r.id)}">🎁 100 💎</button>
+      <button class="small" data-act="modDel" data-arg="${esc(r.id)}" style="${del ? "background:#ff2a4a;color:#fff" : ""}">${del ? "⚠️ Tap again to DELETE" : "🗑️ Delete"}</button></div>`;
+  });
+  panel("🛡️ Owner Tools", h, renderOwner);
+  const qi = $("modQ"); if (qi) qi.addEventListener("keydown", e => { if (e.key === "Enter") ACT.modSearch(); });
+}
+function modRow(uid){ return modPlayers().find(r => r.id === uid) || LB.rows.find(r => r.id === uid) || (MOD.bans[uid] ? { id: uid, name: MOD.bans[uid].name, user: MOD.bans[uid].user } : { id: uid }); }
+function modOk(uid){ return LB.owner && FB.fdb && uid && uid !== LB.uid; }
+const REPORT_WHY = ["Being mean","Bad words","Asking for private info","Spamming","Something else"];
+const MOD_ACT = {
+  ownerPanel: () => { MOD.confirm = ""; renderOwner(); },
+  modSearch: async () => {
+    const q = String($("modQ").value || "").trim().toLowerCase().replace(/^@/, ""); MOD.q = q; MOD.look = null;
+    if (/^[a-z0-9_]{3,14}$/.test(q) && !LB.rows.some(r => r.user === q)){ try { const d = await FB.fdb.collection("splashNames").doc(q).get(); if (d.exists && d.data().uid !== LB.uid){ const uid = d.data().uid; MOD.look = Object.assign({ name: "@" + q }, LB.rows.find(r => r.id === uid) || {}, { id: uid, user: q }); } } catch(e){} }
+    renderOwner();
+  },
+  modClear: () => { MOD.q = ""; MOD.look = null; renderOwner(); },
+  modBan: async uid => { if (!modOk(uid)) return; const r = modRow(uid); try { await FB.fdb.collection("splashBans").doc(uid).set({ banned:true, at: Date.now(), name: String(r.name || "Player").slice(0, 14), user: r.user || "", wipe: (MOD.bans[uid] && MOD.bans[uid].wipe) || 0 }); FB.fdb.collection("splashLb").doc(uid).delete().catch(() => {}); sfx.coin(); toast("🚫 Banned " + (r.name || "player")); } catch(e){ note("Couldn't ban — update the Firebase rules first."); } },
+  modUnban: async uid => { if (!modOk(uid)) return; const b = MOD.bans[uid] || {}; try { await FB.fdb.collection("splashBans").doc(uid).set(Object.assign({}, b, { banned:false })); toast("✅ Unbanned " + (b.name || "player")); } catch(e){ note("Couldn't unban — update the Firebase rules first."); } },
+  modDel: async uid => {
+    if (!modOk(uid)) return;
+    if (MOD.confirm !== uid){ MOD.confirm = uid; renderOwner(); note("Tap 🗑️ again to delete this account for good."); return; }
+    MOD.confirm = ""; const r = modRow(uid), b = MOD.bans[uid] || {};
+    try {
+      await FB.fdb.collection("splashBans").doc(uid).set({ banned: !!b.banned, at: Date.now(), name: String(r.name || b.name || "Player").slice(0, 14), user: r.user || b.user || "", wipe: Date.now() });
+      const del = ref => ref.delete().catch(() => {});
+      del(FB.fdb.collection("splashLb").doc(uid)); del(FB.fdb.collection("splashSaves").doc(uid)); del(FB.fdb.collection("splashFriends").doc(uid)); del(FB.fdb.collection("splashMail").doc(uid));
+      const un = r.user || b.user; if (un){ const d = await FB.fdb.collection("splashNames").doc(un).get(); if (d.exists && d.data().uid === uid) del(FB.fdb.collection("splashNames").doc(un)); }
+      MOD.look = null; sfx.fail(); toast("🗑️ Deleted " + (r.name || "the account")); renderOwner();
+    } catch(e){ note("Couldn't delete — update the Firebase rules first."); }
+  },
+  modGift: async uid => { if (!modOk(uid)) return; const ref = FB.fdb.collection("splashMail").doc(uid); try { const d = await ref.get(), old = d.exists && Array.isArray(d.data().gifts) ? d.data().gifts : []; await ref.set({ gifts: old.slice(-19).concat([{ id: "g" + Date.now().toString(36) + Math.floor(Math.random()*1e6).toString(36), g:100, msg:"The game owner sent you 100 gems!" }]) }); sfx.coin(); toast("🎁 Sent 100 💎 to " + (modRow(uid).name || "player")); } catch(e){ note("Couldn't send — update the Firebase rules first."); } },
+  modNews: async () => { if (!LB.owner) return; const t = String($("newsIn").value || "").trim().slice(0, 120); if (!t){ note("Type a message first."); return; } try { await FB.fdb.collection("splashNews").doc("main").set({ t, at: Date.now() }); toast("📢 Posted!"); } catch(e){ note("Couldn't post — update the Firebase rules first."); } },
+  modNewsClear: async () => { if (!LB.owner) return; try { await FB.fdb.collection("splashNews").doc("main").delete(); toast("News removed"); } catch(e){} },
+  modDismiss: async id => { if (!LB.owner) return; try { await FB.fdb.collection("splashReports").doc(id).delete(); } catch(e){} },
+  reportOpen: uid => { if (!FR.list.includes(uid)) return; const f = friendInfo(uid); panel("🚩 Report " + esc(f.name || "player"), `<p class="sub">Is <b>${esc(f.name || "this player")}</b> being mean, sharing private info or breaking the rules? Tell the game owner. They won't see who reported them.</p><div class="row">${REPORT_WHY.map((w, i) => `<button class="small" data-act="reportSend" data-arg="${i}|${esc(uid)}">${w}</button>`).join("")}</div><div class="btns"><button data-act="friendChat" data-arg="${esc(uid)}">⬅️ Back to chat</button></div>`, null); },
+  reportSend: async a => {
+    const [i, uid] = String(a).split("|"), why = REPORT_WHY[+i] || "Other";
+    if (!FR.list.includes(uid) || !FB.fdb) return;
+    const f = friendInfo(uid), room = pairRoom(LB.uid, uid), lastMsg = CHAT.room === room ? CHAT.msgs.filter(m => m.u === uid).slice(-1)[0] : null;
+    try { await FB.fdb.collection("splashReports").doc(LB.uid + "_" + uid).set({ by: LB.uid, byName: String(S.name || "Astro").slice(0, 14), who: uid, whoName: String(f.name || "Player").slice(0, 14), whoUser: f.user || "", why, last: lastMsg ? String(lastMsg.t).slice(0, 120) : "", at: Date.now() }); sfx.coin(); toast("🚩 Thanks! The owner will take a look."); ACT.friendChat(uid); }
+    catch(e){ note("Couldn't send the report right now."); }
+  },
+};
+
 // ================= friends-only chat =================
 const CHAT = { fdb:null, ts:null, room:"", msgs:[], unsub:null, last:0, unread:0, err:"", loaded:false, watch:{}, latest:{}, unreadRooms:{} };
 const GEM_GIFT = 15;
@@ -2733,7 +2845,7 @@ function renderChat(){
   if (!fu){ if (!FR.loaded){ panel("💬 Friends Chat", `<p class="sub">Loading your friends… 👥</p>`, renderChat); return; } S.chatRoom = ""; save(); chatConnect(); return renderChat(); }
   S.chatSeen[CHAT.room] = Date.now(); delete CHAT.unreadRooms[CHAT.room]; chatRecount(); save();
   const myStk = STICKERS.filter(x => S.stickers[x.id]);
-  h = `<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="pill">${esc(fi.av || "👩‍🚀")} <b>${esc(fi.name || "Friend")}</b> ${fi.user ? "@" + esc(fi.user) : ""}</span><span><button class="small gold" data-act="friendGift" data-arg="${esc(fu)}">${giftSentToday(fu) ? "✅ Gifted today" : "🎁 Gift " + GEM_GIFT + " 💎"}</button> <button class="small" data-act="chatLeave">⬅️ All friends</button></span></div>
+  h = `<div class="row" style="justify-content:space-between;margin-bottom:8px"><span class="pill">${esc(fi.av || "👩‍🚀")} <b>${esc(fi.name || "Friend")}</b> ${fi.user ? "@" + esc(fi.user) : ""}</span><span><button class="small gold" data-act="friendGift" data-arg="${esc(fu)}">${giftSentToday(fu) ? "✅ Gifted today" : "🎁 Gift " + GEM_GIFT + " 💎"}</button> <button class="small" data-act="chatLeave">⬅️ All friends</button> <button class="small" data-act="reportOpen" data-arg="${esc(fu)}" title="Tell the game owner about a problem">🚩</button></span></div>
     ${CHAT.err ? `<p class="note">${esc(CHAT.err)}</p>` : ""}
     <div class="chatlog" id="chatLog"></div>
     <div class="row" style="margin-top:8px;gap:6px">${CHAT_QUICK.map((q, i) => `<button class="small" data-act="chatQuick" data-arg="${i}">${q}</button>`).join("")}</div>
@@ -2748,6 +2860,7 @@ function renderChat(){
 async function chatPost(text, isCode){
   if (!CHAT.fdb || !CHAT.room || !LB.uid){ note("Chat isn't connected yet — try again in a moment."); return false; }
   if (!chatFriendOf(CHAT.room)){ note("You can only chat with friends! 👥"); return false; }
+  if (BANNED){ note("This account is banned."); return false; }
   if (Date.now() - CHAT.last < 1500){ note("Slow down a little! 🐢"); return false; }
   let t = text;
   if (!isCode){ const c = chatClean(text); if (c.err){ note(c.err); sfx.fail(); return false; } t = c.t; if (!t) return false; }
@@ -2967,6 +3080,8 @@ const ACT = {
     requestAnimationFrame(step);
   },
 };
+
+Object.assign(ACT, MOD_ACT);
 
 // ================= flow =================
 function applyPerks(){
