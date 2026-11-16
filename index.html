@@ -268,25 +268,25 @@ const LEVELS = [
   { name:"Bubble Bay",     icon:"🫧", hue:190, len:2000, d:0.10, bubbleMult:1.6 },
   { name:"Crater Camp",    icon:"🌋", hue:15,  len:2200, d:0.20 },
   { name:"Comet Cove",     icon:"☄️", hue:260, len:2400, d:0.25, bounce:0.25 },
-  { name:"Wobble Rocks",   icon:"🌀", hue:290, len:2500, d:0.30, move:0.3 },
+  { name:"Wobble Rocks",   icon:"🌀", hue:290, len:2500, d:0.30, move:0.3, belt:0.25 },
   { name:"Nebula Nook",    icon:"🌌", hue:320, len:2700, d:0.40, ice:0.35 },
   { name:"Jelly Junction", icon:"🍮", hue:160, len:2900, d:0.45, mega:true, move:0.25 },
   { name:"Goo King's Lair",icon:"👑", hue:110, boss:true },
   { name:"Frostbite Flats", icon:"🧊", hue:195, len:2400, d:0.30, ice:0.35, world:2 },
   { name:"Breezy Belt",     icon:"🌬️", hue:175, len:2600, d:0.35, fan:0.7, world:2 },
   { name:"Crystal Caves",   icon:"💎", hue:250, len:2700, d:0.40, mega:true, world:2 },
-  { name:"Twinkle Towers",  icon:"✨", hue:280, len:2800, d:0.45, move:0.35, world:2 },
-  { name:"Slippy Slopes",   icon:"⛷️", hue:205, len:2900, d:0.45, ice:0.55, world:2 },
+  { name:"Twinkle Towers",  icon:"✨", hue:280, len:2800, d:0.45, move:0.35, portal:true, world:2 },
+  { name:"Slippy Slopes",   icon:"⛷️", hue:205, len:2900, d:0.45, ice:0.55, boostR:0.35, world:2 },
   { name:"Gusty Gorge",     icon:"🌪️", hue:160, len:3000, d:0.50, fan:0.8, bounce:0.2, world:2 },
   { name:"Starlight Summit",icon:"🏔️", hue:230, len:3200, d:0.55, ice:0.25, move:0.25, fan:0.5, world:2 },
   { name:"Frost Queen's Palace", icon:"❄️", hue:200, boss:true, queen:true, world:2 },
   { name:"Ember Edge",      icon:"🔥", hue:15,  len:2600, d:0.40, geyser:0.45, lava:true, world:3 },
   { name:"Magma Moat",      icon:"🌋", hue:5,   len:2800, d:0.45, geyser:0.55, lava:true, world:3 },
-  { name:"Cinder Steps",    icon:"🪨", hue:25,  len:2900, d:0.50, move:0.35, lava:true, world:3 },
+  { name:"Cinder Steps",    icon:"🪨", hue:25,  len:2900, d:0.50, move:0.35, crumble:0.4, lava:true, world:3 },
   { name:"Volcano Vents",   icon:"♨️", hue:10,  len:3000, d:0.50, geyser:0.75, lava:true, world:3 },
-  { name:"Scorch Bridge",   icon:"🌉", hue:30,  len:3100, d:0.55, bounce:0.3, geyser:0.3, lava:true, world:3 },
+  { name:"Scorch Bridge",   icon:"🌉", hue:30,  len:3100, d:0.55, bounce:0.3, geyser:0.3, belt:0.3, crumble:0.2, lava:true, world:3 },
   { name:"Ash Archipelago", icon:"🏝️", hue:20,  len:3200, d:0.60, mega:true, geyser:0.4, lava:true, world:3 },
-  { name:"Inferno Peak",    icon:"🏔️", hue:0,   len:3400, d:0.65, geyser:0.5, move:0.3, fan:0.3, lava:true, world:3 },
+  { name:"Inferno Peak",    icon:"🏔️", hue:0,   len:3400, d:0.65, geyser:0.5, move:0.3, fan:0.3, crumble:0.2, boostR:0.3, portal:true, lava:true, world:3 },
   { name:"Magma Goo's Volcano", icon:"🌋", hue:12, boss:true, magma:true, lava:true, world:3 },
 ];
 const EVENTS = [
@@ -313,6 +313,9 @@ const MODS = [
   { id:"mega",    icon:"🟢", name:"Mega Goo",       desc:"Giant goo worth extra gems", mega:true },
   { id:"boing",   icon:"🦘", name:"Boing Boing",    desc:"Bounce pads all over", bounce:0.45 },
   { id:"shower",  icon:"💎", name:"Gem Shower",     desc:"Twice as many gems", gemMult:2 },
+  { id:"crumbly", icon:"🧱", name:"Crumbly Day",    desc:"Rocks crumble when you stand on them!", crumble:0.35 },
+  { id:"belts",   icon:"➡️", name:"Conveyor Chaos", desc:"Conveyor belts push you around", belt:0.4 },
+  { id:"portals", icon:"🟣", name:"Portal Party",   desc:"Zip through portals + boost rings", portal:true, boostR:0.4 },
 ];
 const PARTY = [
   { id:"goorush", icon:"🟢", name:"Goo Rush",     desc:"Goo keeps popping up — clean as many as you can!", time:60, unit:"goo cleaned", mult:2, hue:110 },
@@ -353,7 +356,7 @@ const QUESTS = [
   { k:"gems", goal:40, t:"Collect 40 gems", ic:"💎" }, { k:"levels", goal:2, t:"Clear 2 outposts", ic:"🏁" },
   { k:"bounces", goal:5, t:"Boing on 5 bounce pads", ic:"🦘" }, { k:"bubbles", goal:3, t:"Grab 3 water bubbles", ic:"🫧" },
   { k:"combo", goal:2, t:"Get 2 goo combos (x3)", ic:"🔥" }, { k:"daily", goal:1, t:"Clear the Daily Outpost", ic:"🛰️" },
-  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"harvests", goal:3, t:"Collect 3 crystals in your lab", ic:"🔬" }, { k:"raceWins", goal:1, t:"Win a Rocket Race", ic:"🏁" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" },
+  { k:"bosshits", goal:60, t:"Splash a boss 60 times", ic:"👑" }, { k:"party", goal:2, t:"Play 2 Party Games", ic:"🎉" }, { k:"harvests", goal:3, t:"Collect 3 crystals in your lab", ic:"🔬" }, { k:"raceWins", goal:1, t:"Win a Rocket Race", ic:"🏁" }, { k:"dashAttempts", goal:10, t:"Try Challenge mode 10 times", ic:"⚡" }, { k:"dash", goal:1, t:"Beat a Challenge level", ic:"🏁" }, { k:"quiz", goal:5, t:"Answer 5 questions right", ic:"🧠" }, { k:"monsters", goal:20, t:"Clean 20 monsters", ic:"👾" }, { k:"battles", goal:1, t:"Win a Monster Battle", ic:"⚔️" }, { k:"golden", goal:1, t:"Clean a golden goo", ic:"🌟" }, { k:"stars3", goal:1, t:"Get 3 stars on any outpost", ic:"⭐" }, { k:"portals", goal:3, t:"Zip through 3 portals", ic:"🟣" }, { k:"boosts", goal:5, t:"Fly through 5 boost rings", ic:"💨" },
 ];
 const AWARDS = [
   { id:"first",   e:"💦", name:"First Splash",   d:"Clean your first goo",     g:10,  ok:() => S.stats.goo >= 1 },
@@ -395,6 +398,9 @@ const AWARDS = [
   { id:"gifter",  e:"🎁", name:"Kind Friend",    d:"Gift a pal to a friend",   g:50,  ok:() => S.stats.gifts >= 1 },
   { id:"gemgift", e:"💝", name:"Super Generous", d:"Gift gems to friends 10 times", g:100, ok:() => (S.stats.gemGifts || 0) >= 10 },
   { id:"chatty",  e:"💬", name:"Chatterbox",     d:"Send 50 chat messages",    g:50,  ok:() => (S.stats.chatMsgs || 0) >= 50 },
+  { id:"portal25",e:"🟣", name:"Portal Hopper",  d:"Zip through 25 portals",   g:80,  ok:() => (S.stats.portals || 0) >= 25 },
+  { id:"boost50", e:"💨", name:"Speed Demon",    d:"Fly through 50 boost rings", g:80, ok:() => (S.stats.boosts || 0) >= 50 },
+  { id:"crumble", e:"🧱", name:"Light Feet",     d:"Escape 30 crumbling rocks", g:60,  ok:() => (S.stats.crumbles || 0) >= 30 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -404,7 +410,7 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
 const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
+S.stats = Object.assign({ portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 var SJ_WIPED = false;
 const save = () => { if (SJ_WIPED) return; S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
 
@@ -554,6 +560,7 @@ function gen(seed, o){
     const gap = r(90, 140 + o.d*80), w = r(160, 230 - o.d*50), ny = clamp(y + r(-110, 100), 190, 430);
     const n = Math.round(3 * gemMult);
     for (let k=0;k<n;k++){ const t = (k+1)/(n+1); items.push({ type:"gem", x: x + gap*t, y: Math.min(y, ny) - 45 - Math.sin(Math.PI*t)*60, bob: rnd()*6 }); }
+    if (o.boostR && i > 0 && gap > 105 && rnd() < o.boostR) items.push({ type:"boost", x: x + gap/2, y: Math.min(y, ny) - 40, dir:1, bob:0 });
     if (i > 1 && gap > 125 && rnd() < (o.fan || 0.35)) fans.push({ x: x + gap/2 - 28, w:56 });
     else if (o.geyser && i > 0 && gap > 100 && rnd() < o.geyser) fans.push({ x: x + gap/2 - 25, w:50, geyser:true, ph: rnd()*3, period: 2.8 });
     x += gap; y = ny;
@@ -561,8 +568,10 @@ function gen(seed, o){
     if (i > 2 && roll < move){ p.type = "move"; p.amp = r(30, 60); p.sp = r(0.7, 1.2); }
     else if (i > 1 && roll < move + bounce) p.type = "bounce";
     else if (i > 2 && roll < move + bounce + (o.ice || 0.12)) p.type = "ice";
+    else if (o.crumble && i > 1 && rnd() < o.crumble) p.type = "crumble";
+    else if (o.belt && i > 0 && rnd() < o.belt){ p.type = "belt"; p.dir = rnd() < 0.65 ? 1 : -1; }
     plats.push(p);
-    if (p.type !== "bounce" && rnd() < 0.85) addGoo(p, o.mega);
+    if (p.type !== "bounce" && p.type !== "crumble" && rnd() < 0.85) addGoo(p, o.mega);
     if (rnd() < 0.3 * bubbleMult) items.push({ type:"bubble", x: x + w/2 + r(-30, 30), y: y - r(80, 130), bob: rnd()*6 });
     else if (i > 0 && rnd() < 0.2) items.push({ type:"power", p: pick(Object.keys(POWERS), rnd), x: x + w/2, y: y - r(70, 110), bob: rnd()*6 });
     if (i > 1 && rnd() < 0.22){
@@ -572,6 +581,7 @@ function gen(seed, o){
     x += w; i++;
   }
   plats.push(newPlat(x + 120, 380, 260));
+  if (o.portal){ let pn = 0; for (let a = 2; a + 3 < plats.length - 1; a += 7){ const A = plats[a], B = plats[a + 3], c = ["#c49bff","#ff8fd0","#5cc8ff","#ffd166"][pn++ % 4]; const pa = { type:"portal", x: A.x + A.w/2, y: A.y - 60, bob:0, c }, pb = { type:"portal", x: B.x + B.w/2, y: B.y - 60, bob:0, c }; pa.to = pb; pb.to = pa; items.push(pa, pb); } }
   if (goos.length > 3) goos[Math.floor(rnd()*goos.length)].golden = true;
   if (weekEvent().id === "golden" && goos.length > 4){ const g2 = goos.filter(g => !g.golden); g2[Math.floor(Math.random()*g2.length)].golden = true; }
   if (S.quizOn){ const cand = plats.slice(1, -1).filter(p => p.type !== "bounce"); for (let k=0;k<3 && cand.length;k++){ const p = cand.splice(Math.floor(Math.random()*cand.length), 1)[0]; items.push({ type:"quiz", x: p.x + p.w/2, y: p.y - 70, bob: Math.random()*6 }); } }
@@ -784,7 +794,14 @@ function gooHit(g){
 
 function update(dt){
   tAnim += dt;
-  for (const p of plats) if (p.type === "move"){ const ny = p.base + Math.sin(tAnim*p.sp + p.ph)*p.amp; p.dy = ny - p.y; p.y = ny; }
+  for (const p of plats){
+    if (p.type === "move"){ const ny = p.base + Math.sin(tAnim*p.sp + p.ph)*p.amp; p.dy = ny - p.y; p.y = ny; }
+    else if (p.type === "crumble"){
+      if (p.gone){ p.goneT -= dt; p.fallY = (p.fallY || 0) + 420*dt; if (p.goneT <= 0){ p.gone = false; p.cr = 0; p.fallY = 0; burst(p.x + p.w/2, p.y, "#c9a27a", 10, 150); } }
+      else if (p.cr > 0){ p.cr -= dt; if (p.cr <= 0){ p.gone = true; p.goneT = 3.2; p.fallY = 0; if (P.ground === p) P.ground = null; burst(p.x + p.w/2, p.y + 10, "#8a6a4a", 24, 220); tone(160, 60, 0.25, "sawtooth", 0.06); if (running) track("crumbles", 1); } }
+    }
+  }
+  if (P.portCd > 0) P.portCd -= dt;
   for (const q of parts){ q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 400*dt; q.l -= dt; }
   parts = parts.filter(q => q.l > 0);
   for (const f of floats){ f.y -= 40*dt; f.l -= dt; }
@@ -837,6 +854,7 @@ function update(dt){
 
   let grounded = null;
   for (const p of plats){
+    if (p.gone) continue;
     const c = circleRect(P.x, P.y, p); if (!c) continue;
     P.x += c.nx*c.pen; P.y += c.ny*c.pen;
     const vn = P.vx*c.nx + P.vy*c.ny;
@@ -845,9 +863,10 @@ function update(dt){
     if (c.ny < -0.6) grounded = p;
   }
   if (grounded && P.pound){ P.pound = false; pound(grounded); }
-  if (grounded && Math.abs(P.vy) < 60){ P.dj = false; P.ground = grounded; P.vy = 0; P.safePlat = grounded; P.safeX = clamp(P.x, grounded.x + R + 4, grounded.x + grounded.w - R - 4); }
+  if (grounded && Math.abs(P.vy) < 60){ P.dj = false; P.ground = grounded; P.vy = 0; if (grounded.type !== "crumble"){ P.safePlat = grounded; P.safeX = clamp(P.x, grounded.x + R + 4, grounded.x + grounded.w - R - 4); } else if (!(grounded.cr > 0)){ grounded.cr = 0.8; tone(220, 140, 0.12, "triangle", 0.05); } }
   else if (!grounded) P.ground = null;
 
+  if (P.ground && P.ground.type === "belt"){ P.x += P.ground.dir*125*dt; if (!P.onBelt){ P.onBelt = true; track("belts", 1); } } else if (P.ground) P.onBelt = false;
   if (P.y > SLIME_Y){
     const pen = perk.bounce !== undefined ? perk.bounce + 1 : 3;
     burst(P.x, SLIME_Y, opts.lava ? "#ff9f43" : "#7be04a", 26, 300);
@@ -862,6 +881,8 @@ function update(dt){
 
   for (const it of items){
     if (it.taken) continue;
+    if (it.type === "portal"){ if (it.to && !(P.portCd > 0) && Math.hypot(P.x - it.x, P.y - it.y) < R + 18){ burst(it.x, it.y, it.c, 20, 260); P.x = it.to.x; P.y = it.to.y + 6; P.vx *= 0.4; P.vy = -160; P.ground = null; P.pound = false; P.portCd = 1; burst(P.x, P.y, it.c, 24, 300); tone(400, 1400, 0.25, "sine", 0.08); tone(1400, 600, 0.2, "sine", 0.05, 0.15); say("🟣 WHOOSH!", it.c); track("portals", 1); } continue; }
+    if (it.type === "boost"){ if (it.cd > 0) it.cd -= dt; else if (Math.hypot(P.x - it.x, P.y - it.y) < R + 20){ it.cd = 0.7; P.vx = it.dir*640; P.vy = Math.min(P.vy, -280); P.dashT = 0.5; P.ground = null; P.pound = false; burst(it.x, it.y, "#8dff5a", 22, 320); tone(500, 1600, 0.2, "square", 0.05); say("💨 BOOST!", "#8dff5a"); track("boosts", 1); } continue; }
     const mag = Math.max(perk.magnet || 0, pw.magnet ? 180 : 0);
     if (mag && it.type !== "power" && it.type !== "quiz" && it.type !== "treasure"){ const dx = P.x - it.x, dy = P.y - it.y, d = Math.hypot(dx, dy); if (d < mag && d > 1){ it.x += dx/d*320*dt; it.y += dy/d*320*dt; } }
     const iy = it.y + Math.sin(tAnim*3 + it.bob)*5;
@@ -892,7 +913,7 @@ function update(dt){
       else if (!boss.half && boss.hp <= boss.max/2){ boss.half = true; boss.talk = boss.titan ? "Not bad. Not good enough." : boss.queen ? "You're stronger than I thought." : boss.magma ? "Enough games." : "Impossible… how are you doing this?"; boss.talkT = 2.5; }
       continue;
     }
-    for (const p of plats) if (d.x > p.x && d.x < p.x + p.w && d.y > p.y && d.y < p.y + p.h){ d.l = 0; burst(d.x, d.y, waterColor(d.i), 3, 120); break; }
+    for (const p of plats) if (!p.gone && d.x > p.x && d.x < p.x + p.w && d.y > p.y && d.y < p.y + p.h){ d.l = 0; burst(d.x, d.y, waterColor(d.i), 3, 120); break; }
   }
   drops = drops.filter(d => d.l > 0);
   if (boss) updateBoss(dt);
@@ -1658,7 +1679,7 @@ const ED_TOOLS = [
   ["rock","🪨","Rock"],["ice","🧊","Ice"],["bounce","🟠","Bounce"],["move","↕️","Moving"],
   ["goo","🟢","Goo"],["golden","🌟","Gold goo"],["mega","🟩","Big goo"],["gem","💎","Gem"],["bubble","🫧","Bubble"],
   ["power","⚡","Power-up"],["quiz","❓","Question"],["treasure","🗝️","Treasure"],["heart","❤️","Heart"],
-  ["fan","🌀","Fan"],["geyser","🌋","Geyser"],["erase","🧽","Eraser"],["pan","✋","Scroll"]
+  ["fan","🌀","Fan"],["geyser","🌋","Geyser"],["crumble","🧱","Crumbly"],["belt","➡️","Conveyor"],["portal","🟣","Portal (2)"],["boost","💨","Boost ring"],["erase","🧽","Eraser"],["pan","✋","Scroll"]
 ];
 const ED_W_MIN = 1600, ED_W_MAX = 8000, SNAP = 20;
 function blankLevel(){ return { v:1, name:"My Level " + (S.myLevels.length + 1), hue: Math.floor(Math.random()*360), time:120, grav:1, w:2400, plats:[[40,400,260,"rock"],[420,360,180,"rock"]], goos:[[1,50,0,0]], items:[[ "gem",360,300 ]], fans:[] }; }
@@ -1666,12 +1687,12 @@ function snap(v){ return Math.round(v / SNAP) * SNAP; }
 function cleanLevel(L){
   if (!L || typeof L !== "object") return null;
   const num = (v, a, b, d) => { v = Number(v); return Number.isFinite(v) ? clamp(Math.round(v), a, b) : d; };
-  const PT = ["rock","ice","bounce","move"], IT = ["gem","bubble","power","quiz","treasure","heart"];
+  const PT = ["rock","ice","bounce","move","crumble","belt"], IT = ["gem","bubble","power","quiz","treasure","heart","portal","boost"];
   const out = { v:1, name: String(L.name || "Custom Level").slice(0, 24), hue: num(L.hue, 0, 359, 200), time: num(L.time, 30, 300, 120), grav: [0.7,1,1.3].includes(Number(L.grav)) ? Number(L.grav) : 1, w: num(L.w, ED_W_MIN, ED_W_MAX, 2400), plats:[], goos:[], items:[], fans:[] };
   (Array.isArray(L.plats) ? L.plats : []).slice(0, 150).forEach(p => { if (Array.isArray(p)) out.plats.push([num(p[0], 0, ED_W_MAX, 40), num(p[1], 80, 470, 400), num(p[2], 40, 800, 160), PT.includes(p[3]) ? p[3] : "rock"]); });
   if (!out.plats.length) out.plats.push([40, 400, 260, "rock"]);
   out.plats[0][3] = out.plats[0][3] === "move" ? "rock" : out.plats[0][3];
-  (Array.isArray(L.goos) ? L.goos : []).slice(0, 150).forEach(g => { if (Array.isArray(g) && out.plats[g[0]] && out.plats[g[0]][3] !== "bounce") out.goos.push([num(g[0], 0, 149, 0), num(g[1], 0, 760, 10), g[2] ? 1 : 0, g[3] ? 1 : 0]); });
+  (Array.isArray(L.goos) ? L.goos : []).slice(0, 150).forEach(g => { if (Array.isArray(g) && out.plats[g[0]] && out.plats[g[0]][3] !== "bounce" && out.plats[g[0]][3] !== "crumble") out.goos.push([num(g[0], 0, 149, 0), num(g[1], 0, 760, 10), g[2] ? 1 : 0, g[3] ? 1 : 0]); });
   (Array.isArray(L.items) ? L.items : []).slice(0, 250).forEach(it => { if (Array.isArray(it) && IT.includes(it[0])) out.items.push([it[0], num(it[1], 0, ED_W_MAX, 100), num(it[2], 60, 480, 300)].concat(it[0] === "power" && POWERS[it[3]] ? [it[3]] : [])); });
   (Array.isArray(L.fans) ? L.fans : []).slice(0, 40).forEach(f => { if (Array.isArray(f)) out.fans.push([num(f[0], 0, ED_W_MAX, 100), f[1] ? 1 : 0]); });
   out.type = ["normal","race","dash"].includes(L.type) ? L.type : "normal";
@@ -1685,9 +1706,10 @@ function parseLevelCode(code){ try { code = code.replace(/\s+/g, ""); if (!code.
 function buildCustom(L){
   plats = []; goos = []; items = []; balls = []; boss = null; fans = []; BT = null; party = null; balloons = [];
   hue = L.hue; worldW = L.w;
-  L.plats.forEach(p => plats.push(newPlat(p[0], p[1], p[2], p[3], p[3] === "move" ? { amp:50, sp:1, ph:(p[0] % 7) } : {})));
+  L.plats.forEach(p => plats.push(newPlat(p[0], p[1], p[2], p[3], p[3] === "move" ? { amp:50, sp:1, ph:(p[0] % 7) } : p[3] === "belt" ? { dir:1 } : {})));
   L.goos.forEach(g => { const p = plats[g[0]]; if (!p) return; const mega = !!g[3], gw = Math.min(mega ? 90 : 64, Math.max(30, p.w - 20)); goos.push({ p, off: clamp(g[1], 4, Math.max(4, p.w - gw - 4)), w: gw, hp: mega ? 4 : 3, max: mega ? 4 : 3, mega, golden: !!g[2], wob: Math.random()*6, eek:0 }); });
-  L.items.forEach((it, k) => items.push({ type: it[0], x: it[1], y: it[2], bob: k, p: it[0] === "power" ? (it[3] || Object.keys(POWERS)[k % 5]) : undefined }));
+  L.items.forEach((it, k) => items.push({ type: it[0], x: it[1], y: it[2], bob: k, dir: 1, c:"#c49bff", p: it[0] === "power" ? (it[3] || Object.keys(POWERS)[k % 5]) : undefined }));
+  const pts = items.filter(it => it.type === "portal"); for (let k = 0; k + 1 < pts.length; k += 2){ const c = ["#c49bff","#ff8fd0","#5cc8ff","#ffd166"][(k/2) % 4]; pts[k].c = pts[k+1].c = c; pts[k].to = pts[k+1]; pts[k+1].to = pts[k]; }
   L.fans.forEach(f => fans.push(f[1] ? { x: f[0], w:50, geyser:true, ph:(f[0] % 3), period:2.8 } : { x: f[0], w:56 }));
   makeStars(hashStr(L.name || "x"));
 }
@@ -1791,13 +1813,14 @@ function edDown(pt){
   if (ED.data && ED.data.type === "dash") return edDashDown(pt);
   const w = edWorld(pt), t = ED.tool, d = ED.data;
   if (t === "pan"){ ED.drag = { pan:true, sx: pt.x, cam: ED.cam }; return; }
-  if (["rock","ice","bounce","move"].includes(t)){ ED.drag = { x0: snap(w.x), y: clamp(snap(w.y), 80, 470) }; return; }
+  if (["rock","ice","bounce","move","crumble","belt"].includes(t)){ ED.drag = { x0: snap(w.x), y: clamp(snap(w.y), 80, 470) }; return; }
   edPush();
   if (t === "goo" || t === "golden" || t === "mega"){
     const i = edPlatAt(w.x, w.y);
-    if (i < 0 || d.plats[i][3] === "bounce"){ ED.history.pop(); toast("Put goo on top of a rock!"); return; }
+    if (i < 0 || d.plats[i][3] === "bounce" || d.plats[i][3] === "crumble"){ ED.history.pop(); toast("Put goo on top of a solid rock!"); return; }
     const p = d.plats[i], gw = t === "mega" ? 90 : 64; d.goos.push([i, clamp(Math.round(w.x - p[0] - gw/2), 4, Math.max(4, p[2] - gw - 4)), t === "golden" ? 1 : 0, t === "mega" ? 1 : 0]);
-  } else if (["gem","bubble","quiz","treasure","heart"].includes(t)) d.items.push([t, Math.round(w.x), clamp(Math.round(w.y), 60, 470)]);
+  } else if (["gem","bubble","quiz","treasure","heart","boost"].includes(t)) d.items.push([t, Math.round(w.x), clamp(Math.round(w.y), 60, 470)]);
+  else if (t === "portal"){ d.items.push(["portal", Math.round(w.x), clamp(Math.round(w.y), 60, 470)]); const n = d.items.filter(it => it[0] === "portal").length; toast(n % 2 ? "🟣 Portal placed — now place its partner!" : "🟣 Portals linked!"); }
   else if (t === "power"){ const k = Object.keys(POWERS)[ED.powerN++ % 5]; d.items.push(["power", Math.round(w.x), clamp(Math.round(w.y), 60, 470), k]); toast(POWERS[k].e + " " + POWERS[k].name); }
   else if (t === "fan" || t === "geyser") d.fans.push([snap(w.x) - 28, t === "geyser" ? 1 : 0]);
   else if (t === "erase"){ if (!edErase(w.x, w.y)){ ED.history.pop(); return; } }
@@ -1834,7 +1857,7 @@ function drawEditorOverlay(cx){
   if (ED.drag && !ED.drag.pan && ED.hover){ const x1 = snap(ED.hover.x), x0 = Math.min(ED.drag.x0, x1), wid = Math.max(60, Math.abs(x1 - ED.drag.x0)); ctx.fillStyle = "rgba(141,255,90,.35)"; ctx.strokeStyle = "#8dff5a"; ctx.lineWidth = 2; rr(x0 - cx, ED.drag.y, wid, 24, 8); ctx.fill(); ctx.stroke(); }
   else if (ED.hover && ED.tool !== "pan"){ const t = ED_TOOLS.find(x => x[0] === ED.tool); ctx.globalAlpha = 0.7; ctx.font = "22px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t ? t[1] : "", ED.hover.x - cx, ED.hover.y - 18); ctx.textBaseline = "alphabetic"; ctx.globalAlpha = 1; }
   ctx.font = "700 12px system-ui"; ctx.textAlign = "left"; ctx.fillStyle = "rgba(255,255,255,.6)";
-  ctx.fillText(["rock","ice","bounce","move"].includes(ED.tool) ? "Click and drag to draw a platform" : ED.tool === "pan" ? "Drag to scroll (or use ◀ ▶ / arrow keys)" : ED.tool === "erase" ? "Click something to remove it" : ED.tool.includes("goo") || ED.tool === "golden" || ED.tool === "mega" ? "Click on top of a rock to add goo" : "Click to place", 12, 74);
+  ctx.fillText(["rock","ice","bounce","move","crumble","belt"].includes(ED.tool) ? "Click and drag to draw a platform" : ED.tool === "pan" ? "Drag to scroll (or use ◀ ▶ / arrow keys)" : ED.tool === "erase" ? "Click something to remove it" : ED.tool.includes("goo") || ED.tool === "golden" || ED.tool === "mega" ? "Click on top of a rock to add goo" : "Click to place", 12, 74);
   ctx.restore();
 }
 function playCustom(L, testing){
@@ -2128,7 +2151,21 @@ function render(){
     ctx.save(); ctx.translate(x + f.w/2, SLIME_Y - 13); ctx.scale(1, 0.3); ctx.rotate(tAnim*14); ctx.fillStyle = "#cfd8ff"; for (let k=0;k<3;k++){ ctx.rotate(Math.PI*2/3); ctx.fillRect(-3, 0, 6, 24); } ctx.restore();
   }
   for (const p of plats){
-    const x = p.x - cx; if (x > W + 20 || x + p.w < -20) continue;
+    let x = p.x - cx; if (x > W + 20 || x + p.w < -20) continue;
+    if (p.type === "crumble"){
+      if (p.gone){ if (p.fallY < 200){ ctx.globalAlpha = Math.max(0, 1 - p.fallY/200); for (let k=0;k<4;k++){ ctx.fillStyle = "#7a5a3a"; ctx.fillRect(x + k*p.w/4 + 2, p.y + p.fallY*(1 + k*0.2), p.w/4 - 4, 16); } ctx.globalAlpha = 1; } ctx.strokeStyle = "rgba(201,162,122,.25)"; ctx.setLineDash([5,5]); ctx.lineWidth = 2; rr(x, p.y, p.w, p.h, 8); ctx.stroke(); ctx.setLineDash([]); continue; }
+      const sh = p.cr > 0 ? (Math.random()-.5)*4*(1 - p.cr/0.8 + 0.3) : 0; x += sh;
+      ctx.fillStyle = p.cr > 0 ? "#9a6a4a" : "#8a6a4a"; rr(x, p.y, p.w, p.h, 8); ctx.fill(); ctx.fillStyle = "#b08a62"; rr(x + 3, p.y, p.w - 6, 6, 4); ctx.fill();
+      ctx.strokeStyle = "#4a3220"; ctx.lineWidth = 2; ctx.beginPath(); for (let k=1;k<p.w/40;k++){ const cxk = x + k*40; ctx.moveTo(cxk, p.y + 4); ctx.lineTo(cxk - 6, p.y + 12); ctx.lineTo(cxk + 3, p.y + 22); } ctx.stroke();
+      continue;
+    }
+    if (p.type === "belt"){
+      ctx.fillStyle = "#2a2f45"; rr(x, p.y, p.w, p.h, 12); ctx.fill(); ctx.fillStyle = "#4a5270"; rr(x + 2, p.y + 2, p.w - 4, 8, 4); ctx.fill();
+      ctx.save(); ctx.beginPath(); ctx.rect(x + 6, p.y, p.w - 12, p.h); ctx.clip(); ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 3; const off = ((tAnim*125*p.dir) % 28 + 28) % 28;
+      for (let k = -28; k < p.w + 28; k += 28){ const ax = x + k + off; ctx.beginPath(); ctx.moveTo(ax - p.dir*5, p.y + 7); ctx.lineTo(ax + p.dir*3, p.y + 12); ctx.lineTo(ax - p.dir*5, p.y + 17); ctx.stroke(); } ctx.restore();
+      ctx.fillStyle = "#11141f"; ctx.beginPath(); ctx.arc(x + 10, p.y + p.h/2, 7, 0, 7); ctx.arc(x + p.w - 10, p.y + p.h/2, 7, 0, 7); ctx.fill();
+      continue;
+    }
     if (p.type === "bounce"){
       ctx.fillStyle = "#5b4a7a"; rr(x, p.y, p.w, p.h, 8); ctx.fill();
       const sq = 1 + Math.sin(tAnim*6)*0.1;
@@ -2169,6 +2206,8 @@ function render(){
     if (it.taken) continue;
     const x = it.x - cx, y = it.y + Math.sin(tAnim*3 + it.bob)*5;
     if (x < -30 || x > W + 30) continue;
+    if (it.type === "portal"){ ctx.save(); ctx.translate(x, it.y); ctx.shadowColor = it.c; ctx.shadowBlur = 20; for (let k=0;k<3;k++){ ctx.strokeStyle = it.c; ctx.globalAlpha = 0.9 - k*0.25; ctx.lineWidth = 4 - k; ctx.beginPath(); ctx.ellipse(0, 0, 18 - k*5, 30 - k*8, Math.sin(tAnim*2 + k)*0.2, tAnim*(3 + k), tAnim*(3 + k) + 5); ctx.stroke(); } ctx.globalAlpha = 0.35; ctx.fillStyle = it.c; ctx.beginPath(); ctx.ellipse(0, 0, 14, 25, 0, 0, 7); ctx.fill(); ctx.restore(); if (Math.random() < 0.15) parts.push({ x: it.x + (Math.random()-.5)*20, y: it.y + (Math.random()-.5)*40, vx:0, vy:-20, l:0.4, c: it.c }); continue; }
+    if (it.type === "boost"){ ctx.save(); ctx.translate(x, it.y); const pulse = 1 + Math.sin(tAnim*8)*0.06; ctx.scale(pulse, pulse); ctx.shadowColor = "#8dff5a"; ctx.shadowBlur = it.cd > 0 ? 4 : 16; ctx.strokeStyle = it.cd > 0 ? "#4a7a3a" : "#8dff5a"; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, 14, 26, 0, 0, 7); ctx.stroke(); ctx.fillStyle = "#eaffd0"; ctx.beginPath(); ctx.moveTo(-7*it.dir, -8); ctx.lineTo(7*it.dir, 0); ctx.lineTo(-7*it.dir, 8); ctx.closePath(); ctx.fill(); ctx.restore(); continue; }
     if (it.type === "gem"){
       const s = 7 + Math.sin(tAnim*5 + it.bob);
       ctx.save(); ctx.translate(x, y); ctx.shadowColor = "#7ff3ff"; ctx.shadowBlur = 10;
@@ -3116,7 +3155,7 @@ function addEndlessLevel(){
   const difficulty = Math.min(0.92, 0.48 + n * 0.018);
   LEVELS.push(bossStage
     ? { name:`Endless Boss ${Math.ceil(n/5)}`, icon:"👾", hue:(n*37)%360, boss:true, endless:true }
-    : { name:`${names[(n-1)%names.length]} ${n}`, icon:themes[(n-1)%themes.length], hue:(n*43+190)%360, len:3000+Math.min(1800,n*45), d:difficulty, move:Math.min(0.55,0.18+n*0.012), fan:Math.min(0.8,0.2+n*0.015), bounce:n%3===0?0.25:0.12, mega:n%2===0, endless:true });
+    : { name:`${names[(n-1)%names.length]} ${n}`, icon:themes[(n-1)%themes.length], hue:(n*43+190)%360, len:3000+Math.min(1800,n*45), d:difficulty, move:Math.min(0.55,0.18+n*0.012), fan:Math.min(0.8,0.2+n*0.015), bounce:n%3===0?0.25:0.12, mega:n%2===0, crumble: n%4===1 ? 0.3 : 0, belt: n%4===2 ? 0.3 : 0, portal: n%4===3, boostR: n%2 ? 0.3 : 0, endless:true });
 }
 function startLevel(i){
   party = null; balloons = []; BT = null;
