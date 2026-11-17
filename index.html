@@ -2719,16 +2719,35 @@ function renderSeason(){
 // ================= owner tools: bans, deletes, news, gifts, reports =================
 const OWNER_NAME = "splashjetowner";
 let BANNED = false;
-const MOD = { bans:{}, unsubs:[], news:null, mail:[], reports:[], q:"", look:null, confirm:"", repUnsub:null };
+const MOD = { bans:{}, unsubs:[], news:null, mail:[], reports:[], q:"", look:null, confirm:"", repUnsub:null, codes:[], codeUnsub:null };
 function isBanned(uid){ const b = MOD.bans[uid]; return !!(b && b.banned); }
 function modConnect(){
-  MOD.unsubs.forEach(u => { try { u(); } catch(e){} }); MOD.unsubs = []; LB.owner = false; modReports(false);
+  MOD.unsubs.forEach(u => { try { u(); } catch(e){} }); MOD.unsubs = []; LB.owner = false; modReports(false); modCodes(false);
   if (!FB.fdb || !LB.uid) return;
   const me = LB.uid, home = () => { if (!$("home").classList.contains("hidden")) renderHome(); };
   MOD.unsubs.push(FB.fdb.collection("splashBans").onSnapshot(snap => { const b = {}; snap.docs.forEach(d => b[d.id] = d.data()); MOD.bans = b; modCheckMe(); refreshLB(); if (currentPanel === renderOwner && !$("panel").classList.contains("hidden")) renderOwner(); }, () => {}));
-  MOD.unsubs.push(FB.fdb.collection("splashNames").doc(OWNER_NAME).onSnapshot(d => { const was = LB.owner; LB.owner = !!(d.exists && d.data().uid === me); if (was !== LB.owner){ modReports(LB.owner); home(); } }, () => {}));
+  MOD.unsubs.push(FB.fdb.collection("splashNames").doc(OWNER_NAME).onSnapshot(d => { const was = LB.owner; LB.owner = !!(d.exists && d.data().uid === me); if (was !== LB.owner){ modReports(LB.owner); modCodes(LB.owner); home(); } }, () => {}));
   MOD.unsubs.push(FB.fdb.collection("splashNews").doc("main").onSnapshot(d => { MOD.news = d.exists ? d.data() : null; home(); }, () => {}));
   MOD.unsubs.push(FB.fdb.collection("splashMail").doc(me).onSnapshot(d => { MOD.mail = d.exists && Array.isArray(d.data().gifts) ? d.data().gifts : []; modMail(); }, () => {}));
+}
+function modCodes(on){
+  if (MOD.codeUnsub){ try { MOD.codeUnsub(); } catch(e){} MOD.codeUnsub = null; } MOD.codes = [];
+  if (!on || !FB.fdb) return;
+  MOD.codeUnsub = FB.fdb.collection("splashCodes").limit(200).onSnapshot(snap => { MOD.codes = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => (b.at || 0) - (a.at || 0)); if (currentPanel === renderOwner && !$("panel").classList.contains("hidden")) renderOwner(); }, () => {});
+}
+function codeRewardText(c){ const p = []; if (c.g) p.push(c.g + " 💎"); if (c.s) p.push(c.s + " ✨"); if (c.egg) p.push("🥚 Egg"); if (c.pack) p.push(PACKS[c.pack].e + " " + PACKS[c.pack].name); if (c.mega) p.push("🧰 Mega Chest"); if (c.item){ const [cat, id] = c.item.split("-"); const it = SHOP[cat] && SHOP[cat].find(x => x.id === id); if (it) p.push((it.e || "👕") + " " + it.name); } return p.join(" + ") || "nothing"; }
+function codeLeft(c){ const ms = (c.until || 0) - Date.now(); if (ms <= 0) return "expired"; const h = Math.floor(ms/3600000); return h >= 48 ? Math.floor(h/24) + " days left" : h >= 1 ? h + " hours left" : Math.ceil(ms/60000) + " min left"; }
+async function redeemOwnerCode(v){
+  if (!FB.fdb){ note("Codes need the internet — try again in a moment."); return; }
+  if (!/^[A-Z0-9]{3,16}$/.test(v)){ note("Hmm, that code doesn't work. Check the spelling!"); sfx.fail(); return; }
+  let c = null; try { const d = await FB.fdb.collection("splashCodes").doc(v).get(); if (d.exists) c = d.data(); } catch(e){}
+  if (!c){ note("Hmm, that code doesn't work. Check the spelling!"); sfx.fail(); return; }
+  if (!c.until || c.until < Date.now()){ note("Sorry, that code has expired! ⏰"); sfx.fail(); return; }
+  const key = "oc-" + v + "-" + (c.at || 0);
+  if (S.codes.includes(key)){ note("You already used this code! ✅"); return; }
+  S.codes.push(key); save(); sfx.legend(); toast("🔑 Code " + v + " accepted!");
+  const item = c.item && !S.owned.includes(c.item) ? c.item : null;
+  grantReward({ g: clamp(+c.g || 0, 0, 5000), s: clamp(+c.s || 0, 0, 50), egg: c.egg ? 1 : 0, pack: PACKS[c.pack] && c.pack !== "egg" ? c.pack : undefined, item, mega: c.mega ? 1 : 0 }, "🔑 Code " + v + "!");
 }
 function modReports(on){
   if (MOD.repUnsub){ try { MOD.repUnsub(); } catch(e){} MOD.repUnsub = null; } MOD.reports = [];
@@ -2764,6 +2783,20 @@ function renderOwner(){
   const nowMin = Math.floor(Date.now() / 60000), list = modPlayers();
   let h = `<p class="sub">🛡️ Only <b>@${OWNER_NAME}</b> can see this page. <b>Ban</b> stops a player from playing, chatting and being on the leaderboard (you can unban later). <b>Delete</b> wipes their progress, username and friends — it can't be undone.</p>`;
   h += `<div class="sec">📢 NEWS FOR EVERYONE <span>Shows on every player's home screen</span></div><div class="row"><input type="text" id="newsIn" maxlength="120" value="${esc(MOD.news && MOD.news.t || "")}" placeholder="e.g. Double gems this weekend!" aria-label="Announcement" style="flex:1;min-width:200px"><button class="primary" data-act="modNews">Post</button>${MOD.news ? `<button class="small" data-act="modNewsClear">Remove</button>` : ""}</div>`;
+  const itemOpts = ["hat","trail","suit","water"].map(cat => SHOP[cat].filter(it => it.id !== "none" && it.price !== 0).map(it => `<option value="${cat}-${it.id}">${it.e || "👕"} ${esc(it.name)} (${cat})</option>`).join("")).join("");
+  const sel = "font:inherit;font-size:14px;padding:8px;border-radius:10px;background:#0b1030;color:var(--ink);border:1px solid var(--line)";
+  h += `<div class="sec">🔑 MAKE A SECRET CODE <span>Anyone can type it in 🔑 Codes</span></div>
+    <div class="row" style="text-align:left"><input type="text" id="ocCode" maxlength="16" placeholder="CODE (e.g. WINTER26)" aria-label="Code" style="text-transform:uppercase;letter-spacing:2px;font-weight:800">
+    <select id="ocDays" style="${sel}" aria-label="How long"><option value="1">⏱ 1 day</option><option value="3">⏱ 3 days</option><option value="7" selected>⏱ 1 week</option><option value="14">⏱ 2 weeks</option><option value="30">⏱ 1 month</option><option value="90">⏱ 3 months</option><option value="365">⏱ 1 year</option></select></div>
+    <div class="row" style="margin-top:6px"><label class="pill">💎 <input type="number" id="ocG" min="0" max="5000" value="100" style="width:80px;${sel};padding:4px"></label><label class="pill">✨ <input type="number" id="ocS" min="0" max="50" value="0" style="width:60px;${sel};padding:4px"></label>
+    <select id="ocPack" style="${sel}" aria-label="Pack"><option value="">No pack</option><option value="basic">📦 Basic Pack</option><option value="super">🎁 Super Pack</option><option value="cosmic">🌠 Cosmic Pack</option></select>
+    <label class="pill"><input type="checkbox" id="ocEgg"> 🥚 Egg</label><label class="pill"><input type="checkbox" id="ocMega"> 🧰 Mega Chest</label>
+    <select id="ocItem" style="${sel}" aria-label="Item"><option value="">No item</option>${itemOpts}</select></div>
+    <div class="btns" style="margin-top:8px"><button class="gold" data-act="ocMake">🔑 Make code</button></div>`;
+  if (MOD.codes.length){
+    h += `<div class="sec">MY CODES <span>${MOD.codes.length}</span></div>`;
+    MOD.codes.slice(0, 40).forEach(c => { const live = c.until > Date.now(); h += `<div class="quest" style="${live ? "border-color:#ffd166" : "opacity:.55"}"><span class="ic">🔑</span><div class="body"><b style="letter-spacing:2px">${esc(c.id)}</b> <small style="color:${live ? "#8dff5a" : "#ff6b8a"}">· ${codeLeft(c)}</small><br><small>${esc(codeRewardText(c))}</small></div><button class="small" data-act="ocCopy" data-arg="${esc(c.id)}">📋</button><button class="small" data-act="ocDel" data-arg="${esc(c.id)}">🗑️</button></div>`; });
+  }
   if (MOD.reports.length){
     h += `<div class="sec">🚩 REPORTS <span>${MOD.reports.length}</span></div>`;
     MOD.reports.slice(0, 20).forEach(r => { const b = isBanned(r.who); h += `<div class="quest" style="border-color:#ff6b6b"><span class="ic">🚩</span><div class="body"><b>${esc(r.whoName || "Player")}</b> ${r.whoUser ? `<small>@${esc(r.whoUser)}</small>` : ""}<br><small>“${esc(r.why || "")}” — from ${esc(r.byName || "someone")}${r.last ? `<br>Last message: “${esc(String(r.last).slice(0, 80))}”` : ""}</small></div>${b ? `<span class="pill">🚫 Banned</span>` : `<button class="small" data-act="modBan" data-arg="${esc(r.who)}" style="background:#ff6b6b;color:#fff">🚫 Ban</button>`}<button class="small" data-act="modDismiss" data-arg="${esc(r.id)}">✓ Done</button></div>`; });
@@ -2791,6 +2824,19 @@ const MOD_ACT = {
     renderOwner();
   },
   modClear: () => { MOD.q = ""; MOD.look = null; renderOwner(); },
+  ocMake: async () => {
+    if (!LB.owner) return;
+    const code = String($("ocCode").value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (code.length < 3 || code.length > 16){ note("Codes need 3–16 letters or numbers (no spaces)."); sfx.fail(); return; }
+    if (code === "SAMARTH" || hashStr("sj-" + code) === 944884742){ note("That code already exists in the game — pick another!"); return; }
+    const c = { g: clamp(Math.round(+$("ocG").value || 0), 0, 5000), s: clamp(Math.round(+$("ocS").value || 0), 0, 50), pack: $("ocPack").value || "", egg: $("ocEgg").checked ? 1 : 0, mega: $("ocMega").checked ? 1 : 0, item: $("ocItem").value || "", at: Date.now() };
+    c.until = c.at + (+$("ocDays").value || 7) * 86400000;
+    if (!c.g && !c.s && !c.pack && !c.egg && !c.mega && !c.item){ note("Pick at least one reward!"); return; }
+    try { await FB.fdb.collection("splashCodes").doc(code).set(c); sfx.win(); toast("🔑 Code " + code + " made! " + codeLeft(c)); try { navigator.clipboard.writeText(code).catch(() => {}); } catch(e){} }
+    catch(e){ note("Couldn't make the code — update the Firebase rules first."); }
+  },
+  ocDel: async id => { if (!LB.owner) return; try { await FB.fdb.collection("splashCodes").doc(id).delete(); toast("Code " + id + " deleted"); } catch(e){} },
+  ocCopy: id => { try { navigator.clipboard.writeText(id).then(() => toast("📋 Copied " + id)).catch(() => toast("Code: " + id)); } catch(e){ toast("Code: " + id); } },
   modBan: async uid => { if (!modOk(uid)) return; const r = modRow(uid); try { await FB.fdb.collection("splashBans").doc(uid).set({ banned:true, at: Date.now(), name: String(r.name || "Player").slice(0, 14), user: r.user || "", wipe: (MOD.bans[uid] && MOD.bans[uid].wipe) || 0 }); FB.fdb.collection("splashLb").doc(uid).delete().catch(() => {}); sfx.coin(); toast("🚫 Banned " + (r.name || "player")); } catch(e){ note("Couldn't ban — update the Firebase rules first."); } },
   modUnban: async uid => { if (!modOk(uid)) return; const b = MOD.bans[uid] || {}; try { await FB.fdb.collection("splashBans").doc(uid).set(Object.assign({}, b, { banned:false })); toast("✅ Unbanned " + (b.name || "player")); } catch(e){ note("Couldn't unban — update the Firebase rules first."); } },
   modDel: async uid => {
@@ -2937,7 +2983,7 @@ async function chatPost(text, isCode){
 let lastRaceCode = "";
 function renderCodes(){
   panel("🔑 Secret Codes", `<p class="sub">Got a secret code or a 🎁 gift code from a friend? Type it here!</p>
-    <div class="row"><input type="text" id="codeIn" maxlength="12" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Secret code" aria-label="Secret code" style="text-align:center;letter-spacing:3px;font-weight:800"><button class="primary" data-act="redeem">Redeem</button></div>
+    <div class="row"><input type="text" id="codeIn" maxlength="16" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="Secret code" aria-label="Secret code" style="text-align:center;letter-spacing:3px;font-weight:800"><button class="primary" data-act="redeem">Redeem</button></div>
     <div class="how">Each code works once.</div>`, renderCodes);
 }
 function renderLogin(){
@@ -3058,7 +3104,7 @@ const ACT = {
       save(); sfx.legend(); queueReveal({ title:"🌟 SAMARTH SECRET UNLOCKED!", cards:[{ e:"👑", name:"Samarth's Secret Prize", c:"#ffd166", sub:"777 gems + 7 star shards + Mystery Mask" }] });
       toast("Secret code SAMARTH accepted!"); return;
     }
-    if (h !== 944884742){ note("Hmm, that code doesn't work. Check the spelling!"); sfx.fail(); return; }
+    if (h !== 944884742){ redeemOwnerCode(v); return; }
     if (S.codes.includes("secret1")){ note("You already used this code! ✅"); return; }
     S.codes.push("secret1"); save();
     if (!S.owned.includes("hat-mask")) S.owned.push("hat-mask");
