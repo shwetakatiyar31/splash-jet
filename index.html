@@ -238,6 +238,7 @@ const SETS = [
   { id:"fluff", name:"Fluffy Friends",title:"Cuddle Captain", icon:"☁️" },
   { id:"myth",  name:"Mythic Squad",  title:"Mythic Master",  icon:"✨" },
   { id:"arctic",name:"Arctic Crew",   title:"Ice Explorer",   icon:"❄️" },
+  { id:"candy", name:"Candy Crew",    title:"Sugar Rush",     icon:"🍬" },
   { id:"lava",  name:"Lava Buddies",  title:"Volcano Keeper", icon:"🌋" },
 ];
 const PALS = [
@@ -246,6 +247,7 @@ const PALS = [
   ["nibbles","Nibbles","🐹","C","fluff","gems"], ["hops","Hops","🐰","C","fluff","bounce"], ["foxy","Foxy","🦊","R","fluff","time"], ["bamboo","Bamboo","🐼","R","fluff","tank"], ["koko","Koko","🐨","E","fluff","magnet"], ["sparkle","Sparkle","🦄","L","fluff","gems"],
   ["zib","Zib","👽","C","myth","power"], ["bolt","Bolt","🤖","R","myth","tank"], ["zoomy","Zoomy","🛸","R","myth","magnet"], ["draco","Draco","🐲","E","myth","power"], ["glitch","Glitch","👾","L","myth","time"], ["rexy","Rexy","🦖","L","myth","power"],
   ["pebbles","Pebbles","🐧","C","arctic","tank"], ["blubby","Blubby","🦭","C","arctic","bounce"], ["hoot","Hoot","🦉","R","arctic","magnet"], ["frosty","Frosty","🐻‍❄️","R","arctic","power"], ["dasher","Dasher","🦌","E","arctic","time"], ["glacier","Glacier","🐉","L","arctic","gems"],
+  ["lolli","Lolli","🍭","C","candy","gems"], ["sprinkles","Sprinkles","🍩","C","candy","tank"], ["choco","Choco","🍫","R","candy","power"], ["frosty2","Frosty Cake","🧁","R","candy","magnet"], ["swirl","Swirl","🍬","E","candy","time"], ["cakey","Cakey","🎂","L","candy","bounce"],
   ["sizzle","Sizzle","🦎","C","lava","time"], ["pincer","Pincer","🦂","C","lava","power"], ["ember","Ember","🐗","R","lava","tank"], ["blaze","Blaze","🦅","R","lava","magnet"], ["rocky","Rocky","🦏","E","lava","bounce"], ["magmasaur","Magmasaur","🦕","L","lava","gems"],
 ].map(a => ({ id:a[0], name:a[1], e:a[2], rar:a[3], set:a[4], perk:a[5] }));
 const PAL = id => PALS.find(p => p.id === id);
@@ -348,7 +350,8 @@ const todayMod = () => MODS[hashStr("mod-" + today()) % MODS.length];
 const SHOP = {
   suit: [ {id:"white",name:"Classic",price:0,c:"#eef2ff"}, {id:"pink",name:"Bubblegum",price:60,c:"#ffc2e2"}, {id:"mint",name:"Mint",price:60,c:"#b6f5d8"}, {id:"lime",name:"Lime",price:60,c:"#d6ff7a"}, {id:"sky",name:"Sky",price:80,c:"#a9d8ff"}, {id:"gold",name:"Golden",price:200,c:"#ffd166"}, {id:"galaxy",name:"Galaxy",price:300,c:"galaxy"}, {id:"neon",name:"Neon",pass:10,c:"neon"}, {id:"void",name:"Void Suit",dashSuit:true,c:"void"} ],
   water: [ {id:"blue",name:"Splash",price:0,c:"#9be0ff"}, {id:"pink",name:"Pink Fizz",price:50,c:"#ff9bd6"}, {id:"orange",name:"Orange Pop",price:50,c:"#ffb36b"}, {id:"purple",name:"Grape",price:70,c:"#c49bff"}, {id:"ice",name:"Ice Blast",price:90,c:"#e2fbff"}, {id:"rainbow",name:"Rainbow",price:150,c:"rainbow"}, {id:"lava",name:"Lava Fizz",pass:14,c:"lava"} ],
-  hat: [ {id:"none",name:"None",price:0,e:"⛔"}, {id:"antenna",name:"Antenna",price:40,e:"📡"}, {id:"bunny",name:"Bunny Ears",price:80,e:"🐰"}, {id:"propeller",name:"Propeller",price:90,e:"🚁"}, {id:"crown",name:"Crown",price:120,e:"👑"}, {id:"star",name:"Star Halo",price:160,e:"⭐"}, {id:"wizard",name:"Wizard Hat",price:150,e:"🧙"}, {id:"horns",name:"Monster Horns",battle:true,e:"😈"}, {id:"laurel",name:"Champion Laurel",champ:true,e:"🏆"}, {id:"cat",name:"Astro Cat Ears",pass:5,e:"🐱"}, {id:"rocket",name:"Rocket Hat",pass:20,e:"🚀"}, {id:"titan",name:"Titan Crown",titan:true,e:"💜"}, {id:"pirate",name:"Treasure Hat",chest:true,e:"🏴‍☠️"}, {id:"mask",name:"Mystery Mask",secret:true,e:"🎭"} ],
+  hat: [ {id:"none",name:"None",price:0,e:"⛔"}, {id:"antenna",name:"Antenna",price:40,e:"📡"}, {id:"bunny",name:"Bunny Ears",price:80,e:"🐰"}, {id:"propeller",name:"Propeller",price:90,e:"🚁"}, {id:"crown",name:"Crown",price:120,e:"👑"}, {id:"star",name:"Star Halo",price:160,e:"⭐"}, {id:"wizard",name:"Wizard Hat",price:150,e:"🧙"}, {id:"horns",name:"Monster Horns",battle:true,e:"😈"}, {id:"laurel",name:"Champion Laurel",champ:true,e:"🏆"}, {id:"cat",name:"Astro Cat Ears",pass:5,e:"🐱"}, {id:"rocket",name:"Rocket Hat",pass:20,e:"🚀"}, {id:"titan",name:"Titan Crown",titan:true,e:"💜"}, {id:"pirate",name:"Treasure Hat",chest:true,e:"🏴‍☠️"}, {id:"mask",name:"Mystery Mask",secret:true,e:"🎭"}, {id:"ninja",name:"Ninja Band",price:110,e:"🥷"}, {id:"halo",name:"Halo",price:140,e:"😇"}, {id:"chef",name:"Chef Hat",price:100,e:"👨‍🍳"}, {id:"viking",name:"Viking Helmet",price:180,e:"⚔️"}, {id:"cowboy",name:"Cowboy Hat",price:130,e:"🤠"}, {id:"party",name:"Party Hat",price:70,e:"🥳"}, {id:"jester",name:"Jester Hat",rush:true,e:"🃏"} ],
+  trail: [ {id:"none",name:"No Trail",price:0,e:"⛔"}, {id:"sparkle",name:"Sparkles",price:80,e:"✨"}, {id:"bubbles",name:"Bubbles",price:90,e:"🫧"}, {id:"fire",name:"Fire",price:140,e:"🔥"}, {id:"rainbow",name:"Rainbow",price:200,e:"🌈"}, {id:"hearts",name:"Hearts",price:160,e:"💖"}, {id:"stars",name:"Stars",price:180,e:"⭐"}, {id:"snow",name:"Snowflakes",price:150,e:"❄️"}, {id:"crown",name:"Royal Sparks",rush:true,e:"👑"} ],
 };
 const PASS = { 2:{g:30}, 3:{pack:"basic"}, 4:{s:1}, 5:{item:"hat-cat"}, 6:{g:60}, 7:{egg:1}, 8:{s:2}, 9:{pack:"super"}, 10:{item:"suit-neon"}, 11:{g:100}, 12:{egg:1}, 13:{s:3}, 14:{item:"water-lava"}, 15:{pack:"super"}, 16:{g:150}, 17:{pack:"cosmic"}, 18:{s:5}, 19:{egg:1}, 20:{item:"hat-rocket", g:300} };
 const QUESTS = [
@@ -401,6 +404,9 @@ const AWARDS = [
   { id:"portal25",e:"🟣", name:"Portal Hopper",  d:"Zip through 25 portals",   g:80,  ok:() => (S.stats.portals || 0) >= 25 },
   { id:"boost50", e:"💨", name:"Speed Demon",    d:"Fly through 50 boost rings", g:80, ok:() => (S.stats.boosts || 0) >= 50 },
   { id:"crumble", e:"🧱", name:"Light Feet",     d:"Escape 30 crumbling rocks", g:60,  ok:() => (S.stats.crumbles || 0) >= 30 },
+  { id:"rush1",   e:"👑", name:"Boss Rusher",    d:"Beat Boss Rush",           g:250, ok:() => (S.stats.rushWins || 0) >= 1 },
+  { id:"doors10", e:"🚪", name:"Door Opener",    d:"Open 10 Mystery Doors",    g:60,  ok:() => (S.stats.doors || 0) >= 10 },
+  { id:"fashion", e:"👗", name:"Fashion Star",   d:"Own 5 hats and 3 trails",  g:100, ok:() => S.owned.filter(k => k.startsWith("hat-") && k !== "hat-none").length >= 5 && S.owned.filter(k => k.startsWith("trail-") && k !== "trail-none").length >= 3 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -409,9 +415,10 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none"], suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none","trail-none"], trail:"none", doorsDay:"", rushDay:"", rushBest:0, suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], stats:{} }, store(SAVE_KEY) || {});
+S.stats = Object.assign({ rushWins:0, doors:0, portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 var SJ_WIPED = false;
+if (!S.owned.includes("trail-none")) S.owned.push("trail-none");
 const save = () => { if (SJ_WIPED) return; S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
 
 // ---- progression helpers ----
@@ -746,6 +753,15 @@ function circleRect(px, py, p){
   if (d2 >= R*R) return null; if (d2 === 0) return { nx:0, ny:-1, pen:R };
   const d = Math.sqrt(d2); return { nx:dx/d, ny:dy/d, pen:R - d };
 }
+function trailPart(){
+  const t = S.trail, base = { x: P.x + (Math.random()-.5)*10, y: P.y + 6 + (Math.random()-.5)*10, vx: -P.vx*0.15 + (Math.random()-.5)*30, vy: 20 + Math.random()*30, l: 0.6 };
+  if (t === "sparkle") return Object.assign(base, { c: pick(["#ffd166","#fff3b0","#ffffff"]) });
+  if (t === "bubbles") return Object.assign(base, { c:"#bfefff", ring:1, vy:-30 });
+  if (t === "fire") return Object.assign(base, { c: pick(["#ff6b3a","#ff9f43","#ffd166"]), vy: 60 });
+  if (t === "rainbow") return Object.assign(base, { c: `hsl(${(tAnim*360) % 360},90%,65%)`, l: 0.8, vy: 0, vx: -P.vx*0.3 });
+  if (t === "crown") return Object.assign(base, { c: pick(["#ffd166","#c49bff","#ff8fd0"]), e: Math.random() < 0.25 ? "👑" : "" });
+  return Object.assign(base, { e: { hearts:"💖", stars:"⭐", snow:"❄️" }[t] || "✨", c:"#fff", l:0.7 });
+}
 function burst(x, y, c, n, sp){ sp = sp || 260; for (let k=0;k<n;k++) parts.push({ x, y, vx:(Math.random()-.5)*sp, vy:-Math.random()*sp*0.9, l:0.5+Math.random()*0.35, c }); }
 function confetti(){ const cs = ["#ffd166","#5cc8ff","#ff8fd0","#8dff5a","#c49bff"]; for (let k=0;k<90;k++) parts.push({ x: camX + Math.random()*W, y: -10 - Math.random()*100, vx:(Math.random()-.5)*120, vy: Math.random()*120, l: 2 + Math.random(), c: cs[k%cs.length] }); }
 function floatText(x, y, t, c){ floats.push({ x, y, t, c: c || "#ffd166", l: 1 }); }
@@ -836,6 +852,7 @@ function update(dt){
   else if (jumpBuf > 0 && !P.ground && !P.dj && !P.pound && coyote <= 0){ P.dj = true; P.vy = Math.min(P.vy, -370); jumpBuf = 0; P.squish = 0.6; for (let k=0;k<14;k++){ const a = k/14*Math.PI*2; parts.push({ x:P.x, y:P.y + R, vx:Math.cos(a)*160, vy:Math.sin(a)*60, l:0.35, c: k%2 ? "#ffd166" : "#ffffff" }); } tone(500, 1000, 0.12, "sine", 0.08); }
   dashBuf -= dt; if (P.dashCd > 0) P.dashCd -= dt; if (P.dashT > 0) P.dashT -= dt; if (P.respawnT > 0) P.respawnT -= dt;
   if (dashBuf > 0 && !(P.dashCd > 0)){ const dd = mv || (Math.cos(P.aim) >= 0 ? 1 : -1); P.vx = dd*580; P.vy = Math.min(P.vy, -40); P.dashCd = 0.9; P.dashT = 0.2; dashBuf = 0; tone(700, 300, 0.15, "sawtooth", 0.05); for (let k=0;k<12;k++) parts.push({ x:P.x - dd*k*4, y:P.y + (Math.random()-.5)*14, vx:-dd*120, vy:0, l:0.3, c:"#9be0ff" }); }
+  if (S.trail && S.trail !== "none" && (Math.abs(P.vx) > 50 || !P.ground) && Math.random() < 0.45) parts.push(trailPart());
   if (P.dashT > 0 && Math.random() < 0.8) parts.push({ x:P.x, y:P.y + (Math.random()-.5)*16, vx:-Math.sign(P.vx)*80, vy:0, l:0.25, c: suitColor() });
   if (!(P.dashT > 0) && Math.abs(P.vx) > RUN + 10 && !S.classicJet) P.vx *= Math.pow(0.9, dt*60);
   if (P.ground && !mv){ P.vx *= Math.pow(P.ground.type === "ice" ? 0.99 : 0.86, dt*60); }
@@ -2298,7 +2315,8 @@ function render(){
   drawAstronaut(P.x - cx, P.y); ctx.globalAlpha = 1;
   if (emote && emote.t > 0){ emote.t -= 1/60; const ey = P.y - 48 - (1.6 - emote.t)*10; ctx.save(); ctx.globalAlpha = Math.min(1, emote.t*2); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(P.x - cx, ey, 18, 0, 7); ctx.fill(); ctx.beginPath(); ctx.moveTo(P.x - cx - 5, ey + 15); ctx.lineTo(P.x - cx + 5, ey + 15); ctx.lineTo(P.x - cx, ey + 24); ctx.fill(); ctx.font = "22px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(emote.e, P.x - cx, ey + 1); ctx.restore(); ctx.textBaseline = "alphabetic"; ctx.textAlign = "left"; }
 
-  for (const q of parts){ ctx.globalAlpha = Math.min(1, q.l*2); ctx.fillStyle = q.c; ctx.fillRect(q.x - cx - 2, q.y - 2, 4, 4); }
+  for (const q of parts){ ctx.globalAlpha = Math.min(1, q.l*2); if (q.e){ ctx.font = "13px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.fillText(q.e, q.x - cx, q.y); } else if (q.ring){ ctx.strokeStyle = q.c; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(q.x - cx, q.y, 4, 0, 7); ctx.stroke(); } else { ctx.fillStyle = q.c; ctx.fillRect(q.x - cx - 2, q.y - 2, 4, 4); } }
+  ctx.textAlign = "left";
   ctx.globalAlpha = 1;
   ctx.font = "800 16px system-ui,sans-serif"; ctx.textAlign = "center";
   for (const f of floats){ ctx.globalAlpha = Math.min(1, f.l*2); ctx.fillStyle = f.c; ctx.fillText(f.t, f.x - cx, f.y); }
@@ -2448,6 +2466,13 @@ function drawAstronaut(x, y){
 }
 function drawHat(){
   const h = S.hat;
+  if (h === "ninja"){ ctx.fillStyle = "#e0303a"; ctx.fillRect(-R, -9, R*2, 5); ctx.beginPath(); ctx.moveTo(-R, -8); ctx.lineTo(-R - 9, -12 + Math.sin(tAnim*8)*3); ctx.lineTo(-R - 8, -3 + Math.sin(tAnim*8 + 1)*3); ctx.closePath(); ctx.fill(); }
+  if (h === "halo"){ ctx.save(); ctx.shadowColor = "#fff3b0"; ctx.shadowBlur = 10; ctx.strokeStyle = "#ffd166"; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(0, -R - 8 + Math.sin(tAnim*3)*1.5, 10, 3.5, 0, 0, 7); ctx.stroke(); ctx.restore(); }
+  if (h === "chef"){ ctx.fillStyle = "#ffffff"; ctx.fillRect(-8, -R - 2, 16, 6); ctx.beginPath(); ctx.arc(-6, -R - 6, 6, 0, 7); ctx.arc(0, -R - 10, 7, 0, 7); ctx.arc(6, -R - 6, 6, 0, 7); ctx.fill(); ctx.strokeStyle = "#ccd"; ctx.lineWidth = 1; ctx.strokeRect(-8, -R - 2, 16, 6); }
+  if (h === "viking"){ ctx.fillStyle = "#8a8fa8"; ctx.beginPath(); ctx.arc(0, -R + 4, 11, Math.PI, 0); ctx.fill(); ctx.fillStyle = "#c9a227"; ctx.fillRect(-11, -R + 2, 22, 3); ctx.fillStyle = "#f2ead8"; ctx.beginPath(); ctx.moveTo(-10, -R + 1); ctx.quadraticCurveTo(-19, -R - 4, -16, -R - 14); ctx.quadraticCurveTo(-14, -R - 5, -7, -R - 4); ctx.fill(); ctx.beginPath(); ctx.moveTo(10, -R + 1); ctx.quadraticCurveTo(19, -R - 4, 16, -R - 14); ctx.quadraticCurveTo(14, -R - 5, 7, -R - 4); ctx.fill(); }
+  if (h === "cowboy"){ ctx.fillStyle = "#8a5a2a"; ctx.beginPath(); ctx.ellipse(0, -R + 2, 17, 4, 0, 0, 7); ctx.fill(); ctx.fillStyle = "#a8743a"; rr(-8, -R - 10, 16, 12, 4); ctx.fill(); ctx.fillStyle = "#3a2410"; ctx.fillRect(-8, -R - 1, 16, 2.5); }
+  if (h === "party"){ ctx.fillStyle = "#ff8fd0"; ctx.beginPath(); ctx.moveTo(-8, -R + 3); ctx.lineTo(0, -R - 17); ctx.lineTo(8, -R + 3); ctx.closePath(); ctx.fill(); ctx.fillStyle = "#5cc8ff"; ctx.fillRect(-5, -R - 4, 10, 2.5); ctx.fillStyle = "#ffd166"; ctx.beginPath(); ctx.arc(0, -R - 18, 3, 0, 7); ctx.fill(); }
+  if (h === "jester"){ const cs = ["#c49bff","#ffd166","#ff6b8a"]; for (let k=-1;k<=1;k++){ ctx.fillStyle = cs[k+1]; ctx.beginPath(); ctx.moveTo(k*6 - 5, -R + 3); ctx.quadraticCurveTo(k*14, -R - 10, k*16, -R - 4 + Math.sin(tAnim*6 + k)*2); ctx.lineTo(k*6 + 5, -R + 3); ctx.fill(); ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(k*16, -R - 4 + Math.sin(tAnim*6 + k)*2, 2.5, 0, 7); ctx.fill(); } }
   if (h === "antenna"){ ctx.strokeStyle = "#aab"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -R); ctx.lineTo(0, -R - 10); ctx.stroke(); ctx.fillStyle = "#ff6b8a"; ctx.beginPath(); ctx.arc(0, -R - 12, 3.5 + Math.sin(tAnim*8), 0, 7); ctx.fill(); }
   if (h === "bunny"){ ctx.fillStyle = suitColor(); ctx.beginPath(); ctx.ellipse(-5, -R - 8, 3.5, 9, -0.2, 0, 7); ctx.ellipse(5, -R - 8, 3.5, 9, 0.2, 0, 7); ctx.fill(); ctx.fillStyle = "#ffb3d1"; ctx.beginPath(); ctx.ellipse(-5, -R - 8, 1.6, 6, -0.2, 0, 7); ctx.ellipse(5, -R - 8, 1.6, 6, 0.2, 0, 7); ctx.fill(); }
   if (h === "propeller"){ ctx.fillStyle = "#ff6b8a"; ctx.beginPath(); ctx.arc(0, -R + 2, 7, Math.PI, 0); ctx.fill(); ctx.fillStyle = "#555"; ctx.fillRect(-1, -R - 6, 2, 5); const s = Math.sin(tAnim*30)*12; ctx.fillStyle = "#ffd166"; ctx.fillRect(-Math.abs(s), -R - 8, Math.abs(s)*2, 3); }
@@ -2529,6 +2554,8 @@ function renderHome(){
     <div class="tiles">
       <button class="tile" data-act="loginPanel">${bdg(S.login.last !== today() ? 1 : 0)}<span class="ic">📅</span><b>Login Calendar</b><small>Day ${(S.login.n % 7) + 1} of 7</small></button>
       <button class="tile" data-act="chest">${bdg(b.chest)}<span class="ic">🎁</span><b>Chest</b><small>${b.chest ? "Ready!" : "Tomorrow"}</small></button>
+      <button class="tile" data-act="doorsPanel" style="border-color:#c49bff">${bdg(S.doorsDay !== today() ? 1 : 0)}<span class="ic">🚪</span><b>Mystery Doors</b><small>${S.doorsDay !== today() ? "Pick a door!" : "Tomorrow"}</small></button>
+      <button class="tile" data-act="rushPanel" style="border-color:#ffd166;background:linear-gradient(135deg,#4a3a10,#3a1a4a)">${bdg(S.rushDay !== today() && rushUnlocked() ? 1 : 0)}<span class="ic">👑</span><b>Boss Rush</b><small>${rushUnlocked() ? "3 bosses in a row!" : "Beat the Goo King"}</small></button>
       <button class="tile" data-act="wheelPanel">${bdg(b.wheel)}<span class="ic">🎡</span><b>Lucky Wheel</b><small>${b.wheel ? "Free spin!" : "Tomorrow"}</small></button>
       <button class="tile" data-act="questPanel">${bdg(b.quests)}<span class="ic">📜</span><b>Quests</b><small>Daily + weekly</small></button>
       <button class="tile" data-act="passPanel">${bdg(b.pass)}<span class="ic">⭐</span><b>Star Pass</b><small>Lv ${L} rewards</small></button>
@@ -2605,13 +2632,13 @@ function renderPals(){
 }
 function renderShop(){
   let h = `<div class="wallet"><span class="pill">💎 ${S.gems}</span></div><div class="row"><button class="packbtn" data-act="mystery" style="border-color:#c49bff;max-width:320px"><span class="em">🎁</span><b>Mystery Box</b><span>💎 100</span><small>A random suit, hat or water colour you don't have yet!</small></button></div>`;
-  [["suit","SUITS"],["water","WATER"],["hat","HATS"]].forEach(([cat, label]) => {
+  [["suit","SUITS"],["water","WATER"],["hat","HATS"],["trail","JET TRAILS ✨"]].forEach(([cat, label]) => {
     h += `<div class="sec">${label}</div><div class="items">`;
     SHOP[cat].forEach(it => {
       const key = cat + "-" + it.id, owned = S.owned.includes(key), on = S[cat] === it.id;
       const bg = it.c === "galaxy" ? "conic-gradient(#ff8fd0,#5cc8ff,#8dff5a,#ffd166,#ff8fd0)" : it.c === "rainbow" ? "linear-gradient(90deg,#ff6b6b,#ffd166,#8dff5a,#5cc8ff,#c49bff)" : it.c === "neon" ? "radial-gradient(#7bffcf,#1affa0)" : it.c === "lava" ? "linear-gradient(#ffb36b,#ff4d1a)" : it.c === "void" ? "radial-gradient(#c49bff,#2a0f4a)" : (it.c || "#1f2650");
-      const label2 = on ? "Wearing" : owned ? "Tap to wear" : it.pass ? `⭐ Pass Lv ${it.pass}` : it.titan ? "💜 Titan reward" : it.chest ? "🧰 Mega Chest" : it.dashSuit ? "⚡ Beat Void Voyage" : it.battle ? "⚔️ Battle Chest" : it.champ ? "🏆 Be #1 on a leaderboard" : it.secret ? "🔑 Secret code" : "💎 " + it.price;
-      h += `<button class="item${on ? " on" : ""}${!owned && (it.pass || it.titan || it.chest || it.secret || it.dashSuit || it.battle || it.champ) ? " locked" : ""}" data-act="shopItem" data-arg="${key}"><span class="sw" style="background:${bg}">${it.e || ""}</span><span>${it.name}</span><span class="p">${label2}</span></button>`;
+      const label2 = on ? "Wearing" : owned ? "Tap to wear" : it.rush ? "👑 Boss Rush prize" : it.pass ? `⭐ Pass Lv ${it.pass}` : it.titan ? "💜 Titan reward" : it.chest ? "🧰 Mega Chest" : it.dashSuit ? "⚡ Beat Void Voyage" : it.battle ? "⚔️ Battle Chest" : it.champ ? "🏆 Be #1 on a leaderboard" : it.secret ? "🔑 Secret code" : "💎 " + it.price;
+      h += `<button class="item${on ? " on" : ""}${!owned && (it.pass || it.titan || it.chest || it.secret || it.dashSuit || it.battle || it.champ || it.rush) ? " locked" : ""}" data-act="shopItem" data-arg="${key}"><span class="sw" style="background:${bg}">${it.e || ""}</span><span>${it.name}</span><span class="p">${label2}</span></button>`;
     });
     h += `</div>`;
   });
@@ -3046,7 +3073,7 @@ const ACT = {
   evolve: () => { const own = S.pals[S.buddy]; if (!own || own.lvl < 10 || own.mega) return; if (S.shards < 10){ note("Need " + (10 - S.shards) + " more ✨"); sfx.fail(); return; } S.shards -= 10; own.mega = true; checkAwards(); save(); const p = PAL(S.buddy); queueReveal({ title:"🌟 MEGA EVOLUTION!", cards:[{ e:p.e, name:"MEGA " + p.name, c:"#ffd166", rar:"L", shiny: own.shiny, sub:"Power ×1.5 and a golden glow!" }], shake:true, box:p.e, mega:true }); },
   mystery: () => {
     if (S.gems < 100){ note("Need " + (100 - S.gems) + " more 💎"); sfx.fail(); return; }
-    const pool = []; for (const cat of ["suit","water","hat"]) for (const it of SHOP[cat]) if (it.price > 0 && !S.owned.includes(cat + "-" + it.id)) pool.push([cat, it]);
+    const pool = []; for (const cat of ["suit","water","hat","trail"]) for (const it of SHOP[cat]) if (it.price > 0 && !S.owned.includes(cat + "-" + it.id)) pool.push([cat, it]);
     S.gems -= 100; S.stats.mystery++;
     if (!pool.length){ S.gems += 150; save(); queueReveal({ title:"🎁 Mystery Box", cards:[{ e:"💎", name:"150 gems", c:"#5cc8ff", sub:"You own everything already!" }], shake:true, box:"🎁" }); return; }
     const [cat, it] = pick(pool); S.owned.push(cat + "-" + it.id); save();
@@ -3087,6 +3114,7 @@ const ACT = {
       if (it.battle){ note("Win a Monster Battle — this can drop from the Battle Chest!"); return; }
       if (it.dashSuit){ note("Beat the Insane challenge Void Voyage to unlock this!"); return; }
       if (it.secret){ note("This one is a secret... 🤫"); return; }
+      if (it.rush){ note("Beat 👑 Boss Rush to win this!"); return; }
       if (S.gems < it.price){ note(`Need ${it.price - S.gems} more 💎 — try the chest and quests!`); sfx.fail(); return; }
       S.gems -= it.price; S.owned.push(key); sfx.coin(); toast("Got " + it.name + "! 🎉");
     }
@@ -3120,7 +3148,47 @@ const ACT = {
   },
 };
 
-Object.assign(ACT, MOD_ACT);
+// ================= mystery doors =================
+const DOOR_PRIZES = [ { w:30, r:{ g:60 }, t:"60 💎" }, { w:20, r:{ g:120 }, t:"120 💎" }, { w:8, r:{ g:250 }, t:"250 💎" }, { w:15, r:{ s:2 }, t:"2 ✨" }, { w:12, r:{ egg:1 }, t:"🥚 Egg" }, { w:10, r:{ pack:"super" }, t:"🎁 Super Pack" }, { w:5, r:{ s:5, g:100 }, t:"5 ✨ + 100 💎" } ];
+let doorsShown = null;
+function rollDoor(){ const tot = DOOR_PRIZES.reduce((a, d) => a + d.w, 0); let r = Math.random()*tot; for (const d of DOOR_PRIZES){ if (r < d.w) return d; r -= d.w; } return DOOR_PRIZES[0]; }
+function renderDoors(){
+  const open = S.doorsDay === today();
+  let h = `<p class="sub">Three doors. One pick a day. What's behind yours? 🤔</p><div class="row" style="gap:14px;margin:14px 0">`;
+  for (let i=0;i<3;i++){
+    const d = doorsShown && doorsShown[i];
+    h += `<button class="packbtn" data-act="doorPick" data-arg="${i}" ${open ? "disabled" : ""} style="min-height:150px;max-width:150px;border-color:${["#ff6b8a","#5cc8ff","#8dff5a"][i]};${d && d.mine ? "box-shadow:0 0 0 3px #ffd166" : ""}"><span class="em" style="font-size:54px">${d ? (d.mine ? "🎉" : "😮") : "🚪"}</span><b>${d ? d.t : "Door " + (i + 1)}</b><small>${d ? (d.mine ? "Your prize!" : "Behind this one") : ""}</small></button>`;
+  }
+  h += `</div><p class="sub">${open ? "Come back tomorrow for new doors!" : "Tap a door!"} · Doors opened: ${S.stats.doors || 0}</p>`;
+  panel("🚪 Mystery Doors", h, renderDoors);
+}
+// ================= boss rush =================
+const RUSH_BOSSES = ["Goo King's Lair","Frost Queen's Palace","Magma Goo's Volcano"];
+let RUSH = null;
+function rushUnlocked(){ const i = LEVELS.findIndex(l => l.name === RUSH_BOSSES[0]); return (S.stars[i] || 0) > 0; }
+function renderRush(){
+  const ok = rushUnlocked(), first = S.rushDay !== today();
+  let h = `<p class="sub">Fight the <b>Goo King</b>, the <b>Frost Queen</b> and <b>Magma Goo</b> one after another. Lose once and the rush is over! Beat all 3 for a huge prize.</p>
+    <div class="row" style="font-size:44px;gap:18px;margin:10px 0">👑 ❄️ 🌋</div>
+    <div class="quest" style="border-color:#ffd166"><span class="ic">🎁</span><div class="body"><b>Prize</b><br><small>${first ? "First win today: 🧰 MEGA CHEST + 400 💎 + 5 ✨ · chance of the 🃏 Jester Hat or 👑 Royal Sparks trail" : "Already won today — you still get 150 💎 for winning again"}</small></div></div>
+    <p class="sub">Best: ${S.rushBest ? S.rushBest + " of 3 bosses" : "not tried yet"} · Wins: ${S.stats.rushWins || 0}</p>
+    <div class="btns"><button class="primary" data-act="rushGo" ${ok ? "" : "disabled"}>${ok ? "⚔️ Start Boss Rush" : "🔒 Beat the Goo King first"}</button></div>`;
+  panel("👑 Boss Rush", h, renderRush);
+}
+function rushStage(){ const i = LEVELS.findIndex(l => l.name === RUSH_BOSSES[RUSH.stage]); startLevel(i, true); say(["👑 Boss 1 of 3: the Goo King!","❄️ Boss 2 of 3: the Frost Queen!","🌋 FINAL BOSS: Magma Goo!"][RUSH.stage], "#ffd166"); }
+const MORE_ACT = {
+  doorsPanel: () => { doorsShown = null; renderDoors(); },
+  doorPick: i => {
+    if (S.doorsDay === today()) return; i = +i;
+    S.doorsDay = today(); S.stats.doors = (S.stats.doors || 0) + 1;
+    doorsShown = [rollDoor(), rollDoor(), rollDoor()]; doorsShown[i] = Object.assign({ mine:true }, doorsShown[i]);
+    sfx.tick(); checkAwards(); save(); renderDoors();
+    setTimeout(() => grantReward(doorsShown[i].r, "🚪 Behind your door…"), 600);
+  },
+  rushPanel: () => renderRush(),
+  rushGo: () => { if (!rushUnlocked()) return; RUSH = { stage:0 }; rushStage(); },
+};
+Object.assign(ACT, MOD_ACT, MORE_ACT);
 
 // ================= flow =================
 function applyPerks(){
@@ -3157,7 +3225,8 @@ function addEndlessLevel(){
     ? { name:`Endless Boss ${Math.ceil(n/5)}`, icon:"👾", hue:(n*37)%360, boss:true, endless:true }
     : { name:`${names[(n-1)%names.length]} ${n}`, icon:themes[(n-1)%themes.length], hue:(n*43+190)%360, len:3000+Math.min(1800,n*45), d:difficulty, move:Math.min(0.55,0.18+n*0.012), fan:Math.min(0.8,0.2+n*0.015), bounce:n%3===0?0.25:0.12, mega:n%2===0, crumble: n%4===1 ? 0.3 : 0, belt: n%4===2 ? 0.3 : 0, portal: n%4===3, boostR: n%2 ? 0.3 : 0, endless:true });
 }
-function startLevel(i){
+function startLevel(i, fromRush){
+  if (!fromRush) RUSH = null;
   party = null; balloons = []; BT = null;
   startMusic(i); sfx.stage(i);
   mode = LEVELS[i].boss ? "boss" : "level"; levelIdx = i; mod = null; opts = LEVELS[i];
@@ -3306,6 +3375,22 @@ function finish(clean){
     addBtn("Play again", startDaily, true);
     const sb = addBtn("Copy result", async () => { try { await navigator.clipboard.writeText(lastResult); sb.textContent = "Copied!"; } catch(e){ $("doneNote").innerHTML += "<br>" + esc(lastResult.replace("\n"," · ")); } });
     addBtn("Home", goHome);
+  } else if (RUSH && mode === "boss"){
+    const st0 = RUSH.stage; xp += clean ? 120 : 40;
+    S.rushBest = Math.max(S.rushBest || 0, st0 + (clean ? 1 : 0));
+    $("doneName").textContent = "👑 Boss Rush · Boss " + (st0 + 1) + " of 3";
+    $("doneScore").textContent = "+" + runGems + " 💎";
+    if (!clean){ $("doneTitle").innerHTML = 'Rush <span>over!</span>'; $("doneBreak").innerHTML = `You beat ${st0} of 3 bosses. So close — try again!`; RUSH = null; addBtn("Try again", () => { RUSH = { stage:0 }; rushStage(); }, true); addBtn("Home", goHome); }
+    else if (st0 < 2){ $("doneTitle").innerHTML = ["Goo King <span>down!</span>","Frost Queen <span>down!</span>"][st0]; $("doneBreak").innerHTML = "Next boss is waiting…"; addBtn("Next boss →", () => { RUSH.stage++; rushStage(); }, true); addBtn("Give up", () => { RUSH = null; goHome(); }); }
+    else {
+      $("doneTitle").innerHTML = 'BOSS RUSH <span>CHAMPION!</span> 👑'; S.stats.rushWins = (S.stats.rushWins || 0) + 1; RUSH = null; confetti();
+      if (S.rushDay !== today()){
+        S.rushDay = today(); $("doneBreak").innerHTML = "All 3 bosses beaten! Here's your mega prize!";
+        const extra = ["hat-jester","trail-crown"].filter(k => !S.owned.includes(k)); const item = extra.length && Math.random() < 0.5 ? pick(extra) : null;
+        pendingRewards.push([{ g:400, s:5, item }, "👑 Boss Rush prize!"]); pendingRewards.push([{ mega:1 }, "🧰 Boss Rush chest!"]);
+      } else { runGems += 150; $("doneBreak").innerHTML = "All 3 bosses beaten again! +150 💎"; }
+      addBtn("Rush again", () => { RUSH = { stage:0 }; rushStage(); }, true); addBtn("Home", goHome);
+    }
   } else {
     const l = LEVELS[levelIdx];
     $("doneTitle").innerHTML = clean ? (mode === "boss" ? (opts.queen ? 'Frost Queen <span>melted!</span>' : opts.magma ? 'Magma Goo <span>cooled!</span>' : 'Goo King <span>cleaned!</span>') : 'Outpost <span>clean!</span>') : 'So <span>close!</span>';
