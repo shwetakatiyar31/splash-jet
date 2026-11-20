@@ -412,6 +412,8 @@ const AWARDS = [
   { id:"rush1",   e:"👑", name:"Boss Rusher",    d:"Beat Boss Rush",           g:250, ok:() => (S.stats.rushWins || 0) >= 1 },
   { id:"doors10", e:"🚪", name:"Door Opener",    d:"Open 10 Mystery Doors",    g:60,  ok:() => (S.stats.doors || 0) >= 10 },
   { id:"fashion", e:"👗", name:"Fashion Star",   d:"Own 5 hats and 3 trails",  g:100, ok:() => S.owned.filter(k => k.startsWith("hat-") && k !== "hat-none").length >= 5 && S.owned.filter(k => k.startsWith("trail-") && k !== "trail-none").length >= 3 },
+  { id:"publish1",e:"🌍", name:"Level Designer", d:"Publish a level to Community", g:60, ok:() => (S.stats.published || 0) >= 1 },
+  { id:"featured",e:"🌟", name:"Featured Creator",d:"Get a level featured",    g:200, ok:() => (S.stats.featured || 0) >= 1 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -420,8 +422,8 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none","trail-none"], trail:"none", doorsDay:"", rushDay:"", rushBest:0, suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ rushWins:0, doors:0, portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none","trail-none"], trail:"none", doorsDay:"", rushDay:"", rushBest:0, suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], likedLevels:[], featSeen:[], featCleared:[], stats:{} }, store(SAVE_KEY) || {});
+S.stats = Object.assign({ published:0, featured:0, rushWins:0, doors:0, portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 var SJ_WIPED = false;
 if (!S.owned.includes("trail-none")) S.owned.push("trail-none");
 const save = () => { if (SJ_WIPED) return; S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
@@ -1167,7 +1169,7 @@ function pairRoom(a, b){ return [a, b].sort().join("_"); }
 function chatFriendOf(room){ if (!room || !LB.uid) return ""; const parts = String(room).split("_"); if (parts.length !== 2 || !parts.includes(LB.uid)) return ""; const f = parts[0] === LB.uid ? parts[1] : parts[0]; return FR.list.includes(f) ? f : ""; }
 function friendsConnect(){
   FR.unsubs.forEach(u => { try { u(); } catch(e){} }); FR.unsubs = []; FR.list = []; FR.reqIn = []; FR.reqOut = []; FR.loaded = false; chatWatchSync();
-  modConnect();
+  modConnect(); if (FB.fdb && LB.uid) commConnect();
   if (!FB.fdb || !LB.uid) return;
   const me = LB.uid, rerender = () => { if (currentPanel === renderFriends && !$("panel").classList.contains("hidden")) renderFriends(); else { const t = document.querySelector('[data-act="friendsPanel"] small'); if (t) t.textContent = FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"; } };
   FR.unsubs.push(FB.fdb.collection("splashFriends").doc(me).onSnapshot(d => { FR.list = (d.exists && Array.isArray(d.data().list)) ? d.data().list : []; FR.loaded = true; chatWatchSync(); if (CHAT.room && !chatFriendOf(CHAT.room)){ S.chatRoom = ""; save(); chatConnect(); } rerender(); }, () => {}));
@@ -1882,7 +1884,8 @@ function drawEditorOverlay(cx){
   ctx.fillText(["rock","ice","bounce","move","crumble","belt"].includes(ED.tool) ? "Click and drag to draw a platform" : ED.tool === "pan" ? "Drag to scroll (or use ◀ ▶ / arrow keys)" : ED.tool === "erase" ? "Click something to remove it" : ED.tool.includes("goo") || ED.tool === "golden" || ED.tool === "mega" ? "Click on top of a rock to add goo" : "Click to place", 12, 74);
   ctx.restore();
 }
-function playCustom(L, testing){
+function playCustom(L, testing, commId){
+  ED.commId = commId || null;
   const C = cleanLevel(L);
   if (C.type === "dash") return startDashCustom(C, testing);
   if (C.type === "race"){ ED.playing = C; return startRace({ id:"custom", level: C }, null, testing); }
@@ -1900,7 +1903,7 @@ function renderEditorMenu(){
     <div class="sec">MY LEVELS <span>${S.myLevels.length}/30</span></div>`;
   if (!S.myLevels.length) h += `<p class="sub">No levels yet — tap <b>New level</b> to make your first one!</p>`;
   S.myLevels.forEach((L, i) => {
-    h += `<div class="quest"><span class="ic" style="width:34px;height:34px;border-radius:10px;background:hsl(${L.hue},45%,25%);display:flex;align-items:center;justify-content:center">${L.type === "dash" ? "⚡" : L.type === "race" ? "🏁" : "🛠️"}</span><div class="body"><b>${esc(L.name)}</b><br><small>${L.type === "dash" ? `⚡ Challenge · ${(L.dobjs || []).length} things · ${(L.dgaps || []).length} pits` : L.type === "race" ? `🏁 Race vs bots · 🪨 ${L.plats.length} rocks` : `🟢 ${L.goos.length} goo · 🪨 ${L.plats.length} rocks · ⏱ ${fmt(L.time)}`}</small></div><button class="primary small" data-act="edPlay" data-arg="${i}">▶ Play</button><button class="small" data-act="edEdit" data-arg="${i}">✏️ Edit</button><button class="small" data-act="edShare" data-arg="${i}">📤 Share</button><button class="small" data-act="edDelete" data-arg="${i}">🗑️</button></div>`;
+    h += `<div class="quest"><span class="ic" style="width:34px;height:34px;border-radius:10px;background:hsl(${L.hue},45%,25%);display:flex;align-items:center;justify-content:center">${L.type === "dash" ? "⚡" : L.type === "race" ? "🏁" : "🛠️"}</span><div class="body"><b>${esc(L.name)}</b><br><small>${L.type === "dash" ? `⚡ Challenge · ${(L.dobjs || []).length} things · ${(L.dgaps || []).length} pits` : L.type === "race" ? `🏁 Race vs bots · 🪨 ${L.plats.length} rocks` : `🟢 ${L.goos.length} goo · 🪨 ${L.plats.length} rocks · ⏱ ${fmt(L.time)}`}</small></div><button class="primary small" data-act="edPlay" data-arg="${i}">▶ Play</button><button class="small" data-act="edEdit" data-arg="${i}">✏️ Edit</button><button class="small" data-act="edShare" data-arg="${i}">📤 Share</button><button class="small gold" data-act="edPublish" data-arg="${i}">🌍 Publish</button><button class="small" data-act="edDelete" data-arg="${i}">🗑️</button></div>`;
   });
   h += `<textarea id="shareBox" readonly style="display:none;width:100%;height:70px;margin-top:6px;background:#0b1030;color:var(--ink);border:1px solid var(--line);border-radius:10px;font:12px ui-monospace,monospace;padding:8px"></textarea>
     <div class="sec">📥 IMPORT A FRIEND'S LEVEL</div><div class="row"><input type="text" id="importIn" placeholder="Paste a level code (starts with SJ1:)" aria-label="Level code" style="flex:1;min-width:200px"><button class="primary" data-act="edImport">Import</button></div>`;
@@ -2097,7 +2100,7 @@ function dashComplete(){
   sfx.win(); for (let k=0;k<80;k++) parts.push({ x:D.x - 200 + Math.random()*W, y:-10 - Math.random()*80, vx:(Math.random()-.5)*100, vy:Math.random()*120, l:2, c: pick(["#ffd166","#5cc8ff","#ff8fd0","#8dff5a"]) });
   if (L.id === "custom"){
     $("doneTitle").innerHTML = 'Level <span>complete!</span>'; $("doneName").textContent = "⚡ " + L.name; $("doneStars").textContent = [0,1,2].map(i => D.coinsRun.includes(i) ? "🪙" : "").join(" ");
-    $("doneScore").textContent = D.attempt + (D.attempt === 1 ? " attempt — first try!" : " attempts"); $("doneBreak").innerHTML = "Custom levels are just for fun 😉"; $("doneNote").innerHTML = "";
+    $("doneScore").textContent = D.attempt + (D.attempt === 1 ? " attempt — first try!" : " attempts"); $("doneBreak").innerHTML = "Custom levels are just for fun 😉" + commClearReward(true); $("doneNote").innerHTML = "";
     const btns = $("doneBtns"); btns.innerHTML = ""; const add = (t, fn, p) => { const b = document.createElement("button"); b.textContent = t; if (p) b.className = "primary"; b.onclick = fn; btns.appendChild(b); };
     if (ED.testing){ add("Back to editor", openEditor, true); add("Test again", () => startDashCustom(ED.playing, true)); } else { add("Play again", () => startDashCustom(ED.playing, false), true); add("My Levels", renderEditorMenu); add("Home", goHome); }
     show("done"); return;
@@ -2569,6 +2572,7 @@ function renderHome(){
       <button class="tile" data-act="basePanel" style="border-color:#c49bff"><span class="ic">🏠</span><b>My Base</b><small>Decorate your room</small></button>
       <button class="tile" data-act="farmPanel" style="border-color:#5cc8ff;background:linear-gradient(135deg,#102a4a,#2a1050)">${bdg(farmReadyCount())}<span class="ic">🔬</span><b>Crystal Lab</b><small>${farmReadyCount() ? farmReadyCount() + " ready to collect!" : "Grow crystals for gems"}</small></button>
       <button class="tile" data-act="stickersPanel"><span class="ic">📒</span><b>Stickers</b><small>${STICKERS.filter(x => S.stickers[x.id]).length}/${STICKERS.length} collected</small></button>
+      <button class="tile" data-act="commPanel" style="border-color:#5cc8ff;background:linear-gradient(135deg,#103a4a,#1a1a4a)"><span class="ic">🌍</span><b>Community Levels</b><small>Play levels by other players</small></button>
       <button class="tile" data-act="editorMenu" style="border-color:#8dff5a"><span class="ic">🛠️</span><b>Level Editor</b><small>Build &amp; share levels</small></button>
       <button class="tile" data-act="friendsPanel" style="border-color:#8dff5a">${bdg(FR.reqIn.length)}<span class="ic">👥</span><b>Friends</b><small>${FR.reqIn.length ? FR.reqIn.length + " friend request!" : FR.list.length + " friends"}</small></button>
       <button class="tile" data-act="chatPanel" style="border-color:#5cc8ff">${bdg(CHAT.unread)}<span class="ic">💬</span><b>Friends Chat</b><small>${chatTileText()}</small></button>
@@ -3239,7 +3243,92 @@ const MORE_ACT = {
   rushPanel: () => renderRush(),
   rushGo: () => { if (!rushUnlocked()) return; RUSH = { stage:0 }; rushStage(); },
 };
-Object.assign(ACT, MOD_ACT, MORE_ACT);
+// ================= community levels =================
+const COMM = { list:[], unsub:null, tab:"featured", loaded:false, err:"", confirm:"" };
+function commConnect(){
+  if (COMM.unsub){ try { COMM.unsub(); } catch(e){} COMM.unsub = null; }
+  if (!FB.fdb) return;
+  COMM.unsub = FB.fdb.collection("splashLevels").orderBy("at", "desc").limit(200).onSnapshot(snap => {
+    COMM.list = snap.docs.map(d => Object.assign({ id: d.id }, d.data())); COMM.loaded = true; COMM.err = "";
+    for (const L of COMM.list) if (L.by === LB.uid && L.featured && !S.featSeen.includes(L.id)){ S.featSeen = S.featSeen.concat([L.id]).slice(-100); S.stats.featured = (S.stats.featured || 0) + 1; checkAwards(); save(); toast(`🌟 Your level "${String(L.name).slice(0, 24)}" was FEATURED!`); sfx.legend(); }
+    if (currentPanel === renderComm && !$("panel").classList.contains("hidden")) renderComm();
+  }, () => { COMM.err = "Community levels can't load right now."; COMM.loaded = true; });
+}
+function commLevel(L){ try { return cleanLevel(JSON.parse(L.d)); } catch(e){ return null; } }
+function commCard(L, big){
+  const liked = S.likedLevels.includes(L.id), mine = L.by === LB.uid, del = COMM.confirm === L.id;
+  const ic = L.type === "dash" ? "⚡" : L.type === "race" ? "🏁" : "🛠️", typ = L.type === "dash" ? "Challenge" : L.type === "race" ? "Race" : "Clean the goo";
+  return `<div class="quest" style="${L.featured ? "border-color:#ffd166;background:linear-gradient(90deg,#3a2e10,#1a2150)" : ""}${big ? ";padding:14px" : ""}"><span class="ic" style="font-size:${big ? 40 : 28}px;width:${big ? 52 : 38}px;height:${big ? 52 : 38}px;border-radius:12px;background:hsl(${(+L.hue || 200)},45%,25%);display:flex;align-items:center;justify-content:center">${ic}</span>
+    <div class="body"><b style="font-size:${big ? 17 : 14}px">${L.featured ? "⭐ " : ""}${esc(L.name || "Level")}</b><br><small>by ${esc(L.byName || "Player")}${L.user ? " @" + esc(L.user) : ""}${L.user === OWNER_NAME ? " 🛡️" : ""} · ${typ}</small><br><small style="color:var(--gold)">❤️ ${L.likes || 0} · ▶ ${L.plays || 0} plays${L.featured ? " · first clear +50 💎" : ""}</small></div>
+    <button class="primary small" data-act="commPlay" data-arg="${esc(L.id)}">▶ Play</button>
+    ${mine ? "" : `<button class="small${liked ? " gold" : ""}" data-act="commLike" data-arg="${esc(L.id)}" ${liked ? "disabled" : ""}>${liked ? "❤️ Liked" : "🤍 Like"}</button>`}
+    <button class="small" data-act="commSave" data-arg="${esc(L.id)}" title="Copy to My Levels">📥</button>
+    ${LB.owner ? `<button class="small ${L.featured ? "" : "gold"}" data-act="commFeature" data-arg="${esc(L.id)}">${L.featured ? "Unfeature" : "⭐ Feature"}</button>` : ""}
+    ${LB.owner || mine ? `<button class="small" data-act="commDel" data-arg="${esc(L.id)}" style="${del ? "background:#ff2a4a;color:#fff" : ""}">${del ? "Tap again" : "🗑️"}</button>` : ""}</div>`;
+}
+function renderComm(){
+  if (!FB.fdb){ panel("🌍 Community Levels", `<p class="sub">Community levels need an internet connection.</p>`, renderComm); return; }
+  if (!COMM.unsub) commConnect();
+  const wk = weekIdx(), all = COMM.list.filter(L => !isBanned(L.by));
+  const tabs = [["featured","⭐ Featured"],["week","🆕 This Week"],["top","🔥 Top This Week"],["mine","👤 Mine"]];
+  let h = `<p class="sub">Play levels made by other players! Make your own in 🛠️ Level Editor and tap <b>🌍 Publish</b>. The best ones get ⭐ <b>featured</b> by the game owner — featured creators win <b>200 💎 + 2 ✨</b>!</p>
+    <div class="row" style="margin-bottom:10px">${tabs.map(t => `<button class="small ${COMM.tab === t[0] ? "gold" : ""}" data-act="commTab" data-arg="${t[0]}">${t[1]}</button>`).join("")}</div>`;
+  if (COMM.err) h += `<p class="note">${esc(COMM.err)}</p>`;
+  else if (!COMM.loaded) h += `<p class="sub">Loading levels… 🌍</p>`;
+  else {
+    let list;
+    if (COMM.tab === "featured"){
+      list = all.filter(L => L.featured).sort((a, b) => (b.featAt || 0) - (a.featAt || 0));
+      const lotw = list.find(L => L.featWeek === wk);
+      if (lotw){ h += `<div class="sec">🏆 LEVEL OF THE WEEK <span>Week ${wk + 1}</span></div>` + commCard(lotw, true); list = list.filter(L => L !== lotw); if (list.length) h += `<div class="sec">⭐ ALL FEATURED</div>`; }
+      if (!list.length && !lotw) h += `<p class="sub">No featured levels yet — publish yours and maybe it'll be the first! 🌟</p>`;
+    } else if (COMM.tab === "week"){ list = all.filter(L => L.week === wk); if (!list.length) h += `<p class="sub">No new levels this week yet — be the first to publish one!</p>`; }
+    else if (COMM.tab === "top"){ list = all.filter(L => L.week === wk && (L.likes || 0) > 0).sort((a, b) => (b.likes || 0) - (a.likes || 0) || (b.plays || 0) - (a.plays || 0)).slice(0, 20); if (!list.length) h += `<p class="sub">No liked levels this week yet. Play some and tap 🤍 Like!</p>`; else list = list.map((L, i) => Object.assign({}, L, { name: (["🥇 ","🥈 ","🥉 "][i] || "#" + (i + 1) + " ") + (L.name || "Level") })); }
+    else { list = COMM.list.filter(L => L.by === LB.uid); h += `<p class="sub">You can publish ${pubLeft()} more level${pubLeft() === 1 ? "" : "s"} this week.</p>`; if (!list.length) h += `<div class="btns" style="margin-top:0"><button class="primary" data-act="editorMenu">🛠️ Make a level</button></div>`; }
+    h += (list || []).slice(0, 50).map(L => commCard(L)).join("");
+  }
+  panel("🌍 Community Levels", h, renderComm);
+}
+function pubLeft(){ const wk = weekIdx(); return Math.max(0, 3 - COMM.list.filter(L => L.by === LB.uid && L.week === wk).length); }
+function commClearReward(clean){
+  const id = ED.commId; if (!clean || !id) return "";
+  const L = COMM.list.find(x => x.id === id); if (!L || !L.featured || L.by === LB.uid || S.featCleared.includes(id)) return "";
+  S.featCleared = S.featCleared.concat([id]).slice(-300); S.gems += 50; save(); return "<br>⭐ Featured level cleared: +50 💎!";
+}
+const COMM_ACT = {
+  commPanel: () => { COMM.confirm = ""; renderComm(); },
+  commTab: t => { COMM.tab = t; COMM.confirm = ""; renderComm(); },
+  commPlay: id => { const D0 = COMM.list.find(x => x.id === id), L = D0 && commLevel(D0); if (!L){ note("This level can't be loaded."); return; } if (D0.by !== LB.uid && FB.fdb && !COMM_PLAYED[id]){ COMM_PLAYED[id] = 1; try { FB.fdb.collection("splashLevels").doc(id).update({ plays: firebase.firestore.FieldValue.increment(1) }).catch(() => {}); } catch(e){} } L.name = String(D0.name || L.name).slice(0, 24); playCustom(L, false, id); },
+  commLike: async id => { if (S.likedLevels.includes(id) || !FB.fdb) return; const L = COMM.list.find(x => x.id === id); if (!L || L.by === LB.uid) return; S.likedLevels = S.likedLevels.concat([id]).slice(-500); save(); sfx.coin(); try { await FB.fdb.collection("splashLevels").doc(id).collection("likes").doc(LB.uid).set({ at: Date.now() }); await FB.fdb.collection("splashLevels").doc(id).update({ likes: firebase.firestore.FieldValue.increment(1) }); } catch(e){} renderComm(); },
+  commSave: id => { const D0 = COMM.list.find(x => x.id === id), L = D0 && commLevel(D0); if (!L) return; if (S.myLevels.length >= 30){ note("You have 30 levels — delete one first."); return; } L.name = String(D0.name || L.name).slice(0, 24); S.myLevels.push(L); save(); sfx.win(); toast(`📥 Saved "${L.name}" to My Levels`); },
+  commFeature: async id => {
+    if (!LB.owner) return; const L = COMM.list.find(x => x.id === id); if (!L) return;
+    try {
+      if (L.featured){ await FB.fdb.collection("splashLevels").doc(id).update({ featured:false }); toast("Unfeatured"); return; }
+      await FB.fdb.collection("splashLevels").doc(id).update({ featured:true, featAt: Date.now(), featWeek: weekIdx() });
+      if (L.by !== LB.uid){ const FV = firebase.firestore.FieldValue, gift = { id: "f" + id.slice(-12) + Date.now().toString(36), g:200, s:2, msg:`Your level "${String(L.name).slice(0, 24)}" was featured! ⭐` }; await FB.fdb.collection("splashMail").doc(L.by).set({ gifts: FV.arrayUnion ? FV.arrayUnion(gift) : [gift] }, { merge:true }).catch(() => {}); }
+      sfx.legend(); toast("⭐ Featured! The creator gets 200 💎 + 2 ✨");
+    } catch(e){ note("Couldn't feature — update the Firebase rules first."); }
+  },
+  commDel: async id => { const L = COMM.list.find(x => x.id === id); if (!L || !(LB.owner || L.by === LB.uid)) return; if (COMM.confirm !== id){ COMM.confirm = id; renderComm(); return; } COMM.confirm = ""; try { await FB.fdb.collection("splashLevels").doc(id).delete(); toast("🗑️ Level removed"); } catch(e){ note("Couldn't remove it right now."); } },
+  edPublish: async i => {
+    const L = S.myLevels[+i]; if (!L) return;
+    if (!FB.fdb || !LB.uid){ note("Publishing needs the internet."); return; }
+    if (BANNED){ note("This account is banned."); return; }
+    if (!COMM.unsub) commConnect();
+    const C = cleanLevel(L), nm = chatClean(C.name);
+    if (nm.err){ note("Your level name can't have links, emails or long numbers."); return; }
+    if ((C.type || "normal") === "normal" && !C.goos.length){ note("Add some goo before publishing!"); return; }
+    if (COMM.list.some(x => x.by === LB.uid && x.d === JSON.stringify(C))){ note("You already published this level! 🌍"); return; }
+    if (pubLeft() <= 0){ note("You can publish 3 levels a week — come back next week!"); return; }
+    try {
+      await FB.fdb.collection("splashLevels").doc(LB.uid + "_" + Date.now().toString(36)).set({ d: JSON.stringify(C), name: nm.t.slice(0, 24) || "My Level", type: C.type || "normal", hue: C.hue, by: LB.uid, byName: String(S.name || "Astro").slice(0, 14), user: S.username || "", at: Date.now(), week: weekIdx(), likes:0, plays:0, featured:false });
+      S.stats.published = (S.stats.published || 0) + 1; checkAwards(); save(); sfx.win(); toast(`🌍 "${C.name}" is published! Everyone can play it now.`);
+    } catch(e){ note("Couldn't publish — update the Firebase rules first."); }
+  },
+};
+const COMM_PLAYED = {};
+Object.assign(ACT, MOD_ACT, MORE_ACT, COMM_ACT);
 
 // ================= flow =================
 function applyPerks(){
@@ -3325,7 +3414,8 @@ function finish(clean){
     $("doneTitle").innerHTML = clean ? 'Level <span>complete!</span>' : 'So <span>close!</span>';
     $("doneName").textContent = "🛠️ " + (L && L.name || "My Level");
     $("doneScore").textContent = clean ? `Cleaned all ${total} goo with ${fmt(timeLeft)} left!` : `Goo ${cleaned}/${total}`;
-    $("doneBreak").innerHTML = "Custom levels are just for fun — no gems or XP, so nobody can farm the leaderboard 😉";
+    $("doneBreak").innerHTML = "Custom levels are just for fun — no gems or XP, so nobody can farm the leaderboard 😉" + commClearReward(clean);
+    if (ED.commId){ const cid = ED.commId; btns.innerHTML = ""; addBtn(clean ? "Play again" : "Try again", () => ACT.commPlay(cid), true); addBtn("🌍 Community", () => renderComm()); addBtn("Home", goHome); }
     if (ED.testing){ addBtn("Back to editor", openEditor, true); addBtn(clean ? "Test again" : "Try again", () => playCustom(L, true)); }
     else { addBtn(clean ? "Play again" : "Try again", () => playCustom(L, false), true); addBtn("My Levels", renderEditorMenu); addBtn("Home", goHome); }
   } else if (mode === "race"){
@@ -3345,7 +3435,7 @@ function finish(clean){
         if (R.id === "daily" && !R.friend && place <= 3 && S.raceDaily !== today()){ S.raceDaily = today(); S.shards += 1; prize += 40; notes.push("📅 Daily race podium: +1 ✨ + 40 💎"); }
       }
       $("doneTitle").innerHTML = ["🥇 1st <span>place!</span>","🥈 2nd <span>place!</span>","🥉 3rd <span>place!</span>","4th <span>place</span>"][place - 1];
-      $("doneBreak").innerHTML = (custom ? "Custom races are just for fun 😉" : `Prize 💎 ${prize} · Gems found 💎 ${runGems}`) + `<br>Finish order: ${RC.order.concat(clean ? [] : ["You"]).join(" → ")}`;
+      $("doneBreak").innerHTML = (custom ? "Custom races are just for fun 😉" + commClearReward(clean && place === 1) : `Prize 💎 ${prize} · Gems found 💎 ${runGems}`) + `<br>Finish order: ${RC.order.concat(clean ? [] : ["You"]).join(" → ")}`;
       if (place > 3) notes.push("Tip: Shift to dash, ↑↑ to double jump!");
     }
     if (custom){ runGems = 0; xp = 0; runGoo = 0; } else { runGems += prize; xp += 25 + (n - place)*15; }
