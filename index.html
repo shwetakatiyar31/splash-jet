@@ -154,6 +154,7 @@
   <div class="corner">
     <button id="muteBtn" aria-label="Toggle sound">🔊</button>
     <button id="musicBtn" aria-label="Toggle background music" title="Background music">🎵</button>
+    <button id="fsBtn" aria-label="Full screen" title="Full screen (F)">⛶</button>
     <button id="quitBtn" aria-label="Quit to menu" style="display:none">✕</button>
   </div>
 
@@ -2617,7 +2618,7 @@ function renderHome(){
       ${LB.owner ? `<button class="tile" data-act="ownerPanel" style="border-color:#ff6b6b;background:linear-gradient(135deg,#4a1a1a,#1a1a4a)">${bdg(MOD.reports.length)}<span class="ic">🛡️</span><b>Owner Tools</b><small>Ban · delete · gifts</small></button>` : ""}
     </div>
     <div class="note" id="homeNote"></div>
-    <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br><kbd>↑</kbd><kbd>↑</kbd> double jump · <kbd>Shift</kbd> dash · <kbd>1</kbd>–<kbd>6</kbd> emotes<br>Spray <b>down</b> to hover up · land on rock to refill · falling in the slime empties your tank!</div>`;
+    <div class="how">🖱️ Aim + hold click · 📱 Touch &amp; hold where you want to spray · ⌨️ <kbd>←</kbd><kbd>→</kbd> walk · <kbd>↑</kbd> jump · <kbd>↓</kbd> in air = ground pound · <kbd>Space</kbd> spray · <kbd>Q</kbd><kbd>E</kbd> aim<br><kbd>↑</kbd><kbd>↑</kbd> double jump · <kbd>Shift</kbd> dash · <kbd>1</kbd>–<kbd>6</kbd> emotes · <kbd>F</kbd> full screen<br>Spray <b>down</b> to hover up · land on rock to refill · falling in the slime empties your tank!</div>`;
   bind($("homeCard"));
   $("muteBtn").textContent = S.muted ? "🔇" : "🔊";
   updateMusicButton();
@@ -3661,6 +3662,17 @@ function finish(clean){
 
 // ================= wiring =================
 $("quitBtn").onclick = quit;
+function fsOn(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function fsToggle(){
+  try {
+    if (fsOn()){ (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+    else { const el = document.documentElement, rq = el.requestFullscreen || el.webkitRequestFullscreen; if (!rq){ toast("Full screen isn't supported on this device — try rotating it sideways!"); return; } const r = rq.call(el); if (r && r.catch) r.catch(() => toast("Couldn't go full screen")); if (screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {}); }
+  } catch(e){ toast("Couldn't go full screen"); }
+}
+function fsUpdate(){ const b = $("fsBtn"); if (b){ b.textContent = fsOn() ? "🗗" : "⛶"; b.title = fsOn() ? "Exit full screen (F)" : "Full screen (F)"; } setTimeout(fit, 60); }
+$("fsBtn").onclick = fsToggle;
+document.addEventListener("fullscreenchange", fsUpdate); document.addEventListener("webkitfullscreenchange", fsUpdate);
+addEventListener("keydown", e => { if (e.code === "KeyF" && !e.repeat && !(e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName))){ e.preventDefault(); fsToggle(); } });
 $("muteBtn").onclick = () => { S.muted = !S.muted; save(); $("muteBtn").textContent = S.muted ? "🔇" : "🔊"; if (S.muted) stopMusic(); else startMusic(); };
 $("musicBtn").onclick = () => { S.musicOn = !S.musicOn; save(); updateMusicButton(); if (S.musicOn) startMusic(); else stopMusic(); };
 updateMusicButton();
