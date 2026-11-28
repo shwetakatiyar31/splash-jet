@@ -279,6 +279,31 @@ const PALS = [
   ["sizzle","Sizzle","🦎","C","lava","time"], ["pincer","Pincer","🦂","C","lava","power"], ["ember","Ember","🐗","R","lava","tank"], ["blaze","Blaze","🦅","R","lava","magnet"], ["rocky","Rocky","🦏","E","lava","bounce"], ["magmasaur","Magmasaur","🦕","L","lava","gems"],
 ].map(a => ({ id:a[0], name:a[1], e:a[2], rar:a[3], set:a[4], perk:a[5] }));
 const PAL = id => PALS.find(p => p.id === id);
+// ================= monthly events =================
+const MONTH_EVENTS = [
+  { name:"Frosty Comets",    icon:"❄️", tok:"❄️", fx:"🧊 Extra icy rocks in every level",          set:"arctic", pal:["tusky","Tusky","🦣","tank"],   code:"FROSTYCOMET" },
+  { name:"Love Bubbles",     icon:"💖", tok:"💖", fx:"🫧 Double water bubbles everywhere",          set:"fluff",  pal:["valentina","Valentina","🦩","gems"], code:"LOVEBUBBLE" },
+  { name:"Spring Splash",    icon:"🌷", tok:"🌷", fx:"💎 +50% gems from everything",               set:"bugs",   pal:["hopper","Hopper","🐸","bounce"], code:"SPRINGSPLASH" },
+  { name:"Rainy Rockets",    icon:"☔", tok:"☔", fx:"💧 Your tank refills 50% faster",            set:"ocean",  pal:["puddles","Puddles","🦆","tank"], code:"RAINYROCKET" },
+  { name:"Blossom Nebula",   icon:"🌸", tok:"🌸", fx:"🌟 Two golden goo in every level",           set:"candy",  pal:["petal","Petal","🦚","magnet"], code:"BLOSSOM" },
+  { name:"Summer Starburst", icon:"☀️", tok:"☀️", fx:"🎈 Floaty low gravity everywhere",          set:"ocean",  pal:["splashy","Splashy","🐬","time"], code:"STARBURST" },
+  { name:"Lava Lagoon",      icon:"🌋", tok:"🔥", fx:"💨 Boost rings in every level",              set:"lava",   pal:["tiki","Tiki","🦜","power"], code:"LAVALAGOON" },
+  { name:"Moonbeam Beach",   icon:"🌙", tok:"🌙", fx:"🦘 Extra bounce pads everywhere",            set:"myth",   pal:["shellby","Shellby","🐢","bounce"], code:"MOONBEAM" },
+  { name:"Back-to-Space",    icon:"📚", tok:"📚", fx:"⭐ +50% XP from everything",                set:"myth",   pal:["nutty","Nutty","🐿️","time"], code:"BACK2SPACE" },
+  { name:"Spooky Slime",     icon:"🎃", tok:"🎃", fx:"👾 Monsters drop double gems",               set:"lava",   pal:["batty","Batty","🦇","power"], code:"SPOOKYSLIME" },
+  { name:"Harvest Halo",     icon:"🍂", tok:"🍂", fx:"🔬 Crystal Lab grows twice as fast",        set:"candy",  pal:["gobbles","Gobbles","🦃","gems"], code:"HARVESTHALO" },
+  { name:"Snowflake Galaxy", icon:"🎁", tok:"🎁", fx:"🌠 Shooting-star gem showers twice as often", set:"arctic", pal:["snowy","Snowy","⛄","magnet"], code:"SNOWFLAKE" },
+];
+MONTH_EVENTS.forEach((e, m) => PALS.push({ id: e.pal[0], name: e.pal[1], e: e.pal[2], rar:"E", set:"event", perk: e.pal[3], month: m }));
+const EV_MILES = [ { p:50, r:{ g:100 }, t:"100 💎" }, { p:150, r:{ s:2 }, t:"2 ✨" }, { p:300, r:{ egg:1, g:50 }, t:"🥚 Egg + 50 💎" }, { p:500, r:{ pack:"super" }, t:"🎁 Super Pack" }, { p:800, pal:true, t:"Event pal!" }, { p:1200, r:{ mega:1, g:300 }, t:"🧰 Mega Chest + 300 💎" } ];
+const EV_PTS = { goo:1, levels:15, battles:40, party:10, monsters:2, raceWins:20, dash:15, harvests:5, daily:20, expeds:15, quiz:3 };
+function EV(){ return MONTH_EVENTS[new Date().getMonth()]; }
+function evIdx(){ return new Date().getMonth(); }
+function evState(){ if (!S.ev || S.ev.key !== seasonKey()) S.ev = { key: seasonKey(), pts:0, claimed:[] }; return S.ev; }
+function evOn(i){ return evIdx() === i; }
+function evAdd(n){ const st = evState(), before = st.pts; st.pts += Math.round(n); const hit = EV_MILES.find(m => before < m.p && st.pts >= m.p); if (hit) toast(`${EV().icon} Event reward ready: ${hit.t}`); }
+function evOpts(o){ const x = Object.assign({}, o), i = evIdx(); if (i === 0) x.ice = Math.max(x.ice || 0, 0.35); if (i === 1) x.bubbleMult = (x.bubbleMult || 1) * 2; if (i === 6) x.boostR = Math.max(x.boostR || 0, 0.35); if (i === 7) x.bounce = Math.max(x.bounce || 0, 0.3); if (i === 5) x.grav = (x.grav || 1) * 0.85; return x; }
+
 const PERKS = {
   magnet: { icon:"🧲", f:v => `Gem magnet (${Math.round(30 + 25*v)}px pull)` },
   tank:   { icon:"💧", f:v => `+${Math.round(8*v)} water tank` },
@@ -333,7 +358,7 @@ const PAL_PRICE = { C:60, R:150, E:300, L:600 };
 const SHINY_COST = { C:3, R:5, E:8, L:12 };
 function palShopToday(){
   const rnd = mulberry32(hashStr("palshop-" + today())), out = [];
-  while (out.length < 3){ const r = rnd(), rar = r < 0.45 ? "C" : r < 0.8 ? "R" : r < 0.95 ? "E" : "L"; const list = PALS.filter(p => p.rar === rar), p = list[Math.floor(rnd()*list.length)]; if (!out.includes(p.id)) out.push(p.id); }
+  while (out.length < 3){ const r = rnd(), rar = r < 0.45 ? "C" : r < 0.8 ? "R" : r < 0.95 ? "E" : "L"; const list = PALS.filter(p => p.rar === rar && p.set !== "event"), p = list[Math.floor(rnd()*list.length)]; if (!out.includes(p.id)) out.push(p.id); }
   return out;
 }
 const MODS = [
@@ -402,7 +427,7 @@ const AWARDS = [
   { id:"queen",   e:"❄️", name:"Ice Breaker",    d:"Beat the Frost Queen",     g:150, ok:() => S.stats.queens >= 1 },
   { id:"brain50", e:"🧠", name:"Brainiac",       d:"Answer 50 questions right",g:100, ok:() => S.stats.quiz >= 50 },
   { id:"pals10",  e:"🐾", name:"Pal Pal",        d:"Collect 10 Space Pals",    g:60,  ok:() => Object.keys(S.pals).length >= 10 },
-  { id:"pals24",  e:"🏠", name:"Full House",     d:"Collect every Space Pal", g:300, ok:() => Object.keys(S.pals).length >= PALS.length },
+  { id:"pals24",  e:"🏠", name:"Full House",     d:"Collect every Space Pal", g:300, ok:() => PALS.filter(p => p.set !== "event").every(p => S.pals[p.id]) },
   { id:"shiny",   e:"✨", name:"Shiny Hunter",   d:"Find a shiny pal",         g:100, ok:() => Object.values(S.pals).some(p => p.shiny) },
   { id:"streak7", e:"🔥", name:"Week Warrior",   d:"7 day daily streak",       g:100, ok:() => S.streak >= 7 },
   { id:"combo5",  e:"⚡", name:"Combo King",     d:"Hit a x5 goo combo",       g:60,  ok:() => S.stats.maxCombo >= 5 },
@@ -441,6 +466,9 @@ const AWARDS = [
   { id:"explore10",e:"🧭", name:"Explorer",      d:"Finish 10 pal expeditions", g:80,  ok:() => (S.stats.expeds || 0) >= 10 },
   { id:"lavafloor",e:"🔥", name:"Lava Walker",   d:"Catch 30 gems in Floor is Lava", g:80, ok:() => (S.partyBest.lavafloor || 0) >= 30 },
   { id:"saver",   e:"🐷", name:"Super Saver",    d:"Have 1,000 💎 in the Piggy Bank", g:100, ok:() => S.bank && S.bank.amt >= 1000 },
+  { id:"evpal1",  e:"🗓️", name:"Event Hero",     d:"Win a monthly event pal",  g:100, ok:() => PALS.some(p => p.set === "event" && S.pals[p.id]) },
+  { id:"evpal4",  e:"📆", name:"All Year Round", d:"Win 4 monthly event pals", g:300, ok:() => PALS.filter(p => p.set === "event" && S.pals[p.id]).length >= 4 },
+  { id:"tokens50",e:"🪙", name:"Token Collector",d:"Grab 50 event tokens",     g:80,  ok:() => (S.stats.etokens || 0) >= 50 },
   { id:"lvl10",   e:"🚀", name:"Rising Star",    d:"Reach player level 10",    g:100, ok:() => playerLevel() >= 10 },
 ];
 const RANKS = [ [1,"Bronze","🥉"], [5,"Silver","🥈"], [10,"Gold","🥇"], [15,"Platinum","💠"], [20,"Diamond","💎"] ];
@@ -449,8 +477,8 @@ const TITAN_MAX = 400, TITAN_MILES = [ {p:25,t:"100 💎",g:100}, {p:50,t:"2 ✨
 
 // ================= save =================
 const SAVE_KEY = "splashjet-v2";
-const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none","trail-none"], trail:"none", doorsDay:"", rushDay:"", rushBest:0, suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], likedLevels:[], featSeen:[], featCleared:[], expeds:[], bank:{ amt:0, day:"" }, stats:{} }, store(SAVE_KEY) || {});
-S.stats = Object.assign({ expeds:0, interest:0, published:0, featured:0, rushWins:0, doors:0, portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
+const S = Object.assign({ name:"Astro", title:"", gems:0, shards:0, xp:0, stars:{}, owned:["suit-white","water-blue","hat-none","trail-none"], trail:"none", doorsDay:"", rushDay:"", rushBest:0, suit:"white", water:"blue", hat:"none", streak:0, lastDaily:"", chest:"", wheel:"", dailyBest:{}, muted:false, musicOn:true, pals:{}, buddy:"", eggs:[], quests:null, weekly:null, awards:[], passClaimed:[], setClaimed:[], titan:null, partyBest:{}, season:null, codes:[], dash:{}, dashDaily:"", grade:3, quizOn:true, battle:{}, monsters:{}, battleDaily:"", bookClaimed:[], login:{ n:0, last:"" }, palShop:{ day:"", bought:[] }, treasures:[], myLevels:[], stickers:{}, stickerPages:[], classicJet:false, farm:null, races:{}, raceDaily:"", base:null, giftsUsed:[], chatRoom:"", chatRooms:[], chatSeen:{}, gemGifts:{}, gemClaimed:[], mailClaimed:[], likedLevels:[], featSeen:[], featCleared:[], expeds:[], bank:{ amt:0, day:"" }, ev:null, stats:{} }, store(SAVE_KEY) || {});
+S.stats = Object.assign({ etokens:0, evPals:0, expeds:0, interest:0, published:0, featured:0, rushWins:0, doors:0, portals:0, boosts:0, crumbles:0, belts:0, gemGifts:0, chatMsgs:0, goo:0, gems:0, levels:0, bosses:0, titanWins:0, bounces:0, bubbles:0, maxCombo:0, runs:0, packs:0, party:0, golden:0, pounds:0, megas:0, dash:0, dashAttempts:0, quiz:0, quizAns:0, queens:0, monsters:0, battles:0, magma:0, rings:0, hoops:0, mystery:0, harvests:0, defends:0, raceWins:0, gifts:0 }, S.stats);
 var SJ_WIPED = false;
 if (!S.owned.includes("trail-none")) S.owned.push("trail-none");
 const save = () => { if (SJ_WIPED) return; S.savedAt = Date.now(); store(SAVE_KEY, S); if (typeof cloudSaveSoon === "function") cloudSaveSoon(); };
@@ -461,6 +489,7 @@ function playerLevel(){ let L = 1; while (L < 99 && S.xp >= levelThreshold(L)) L
 function rankOf(L){ let r = RANKS[0]; for (const x of RANKS) if (L >= x[0]) r = x; return r; }
 function totalStars(){ return Object.values(S.stars).reduce((a,b) => a + b, 0); }
 function addXP(n){
+  if (evOn(8)) n *= 1.5;
   const before = playerLevel(); S.xp += Math.round(n); const after = playerLevel();
   if (after > before){ toast(`⬆️ Level ${after}! Star Pass reward ready`); sfx.win(); const r0 = rankOf(before), r1 = rankOf(after); if (r0 !== r1) toast(`${r1[2]} Ranked up to ${r1[1]}!`); }
   checkAwards();
@@ -480,18 +509,19 @@ function addSeasonXP(n){ const before = seasonTier(); seasonState().xp += Math.r
 function track(k, n){
   n = n || 1;
   if (k in S.stats) S.stats[k] += n;
+  if (EV_PTS[k] && typeof isCustomPlay === "function" && !isCustomPlay()) evAdd(EV_PTS[k]*n);
   ensureQuests();
   for (const q of S.quests.list) if (q.k === k && q.prog < q.goal){ q.prog = Math.min(q.goal, q.prog + n); if (q.prog >= q.goal) toast(`📜 Quest done: ${q.t}!`); }
   if (k === "goo"){ if (!S.weekGoo || S.weekGoo.w !== weekIdx()) S.weekGoo = { w: weekIdx(), n:0 }; S.weekGoo.n += n; const before = S.weekly.prog; S.weekly.prog = Math.min(S.weekly.goal, S.weekly.prog + n); if (before < S.weekly.goal && S.weekly.prog >= S.weekly.goal) toast("📅 Weekly quest done!"); S.eggs.forEach(e => { const b = e.prog; e.prog = Math.min(e.need, e.prog + n); if (b < e.need && e.prog >= e.need) toast("🥚 An egg is ready to hatch!"); }); }
   checkAwards();
 }
 function checkAwards(){ for (const a of AWARDS) if (!S.awards.includes(a.id) && a.ok()){ S.awards.push(a.id); S.gems += a.g; toast(`🏅 Award: ${a.name}! +${a.g} 💎`); sfx.coin(); } }
-function buddyInfo(){ const p = S.buddy && S.pals[S.buddy] ? PAL(S.buddy) : null; if (!p) return null; const lvl = S.pals[S.buddy].lvl; const mega = !!S.pals[S.buddy].mega; return { p, lvl, mega, v: RAR[p.rar].base * (1 + (lvl-1)*0.15) * (mega ? 1.5 : 1), shiny: S.pals[S.buddy].shiny }; }
+function buddyInfo(){ const p = S.buddy && S.pals[S.buddy] ? PAL(S.buddy) : null; if (!p) return null; const lvl = S.pals[S.buddy].lvl; const mega = !!S.pals[S.buddy].mega; return { p, lvl, mega, v: RAR[p.rar].base * (1 + (lvl-1)*0.15) * (mega ? 1.5 : 1) * (p.set === EV().set || (p.set === "event" && p.month === evIdx()) ? 1.5 : 1), shiny: S.pals[S.buddy].shiny }; }
 function addEgg(){ if (S.eggs.length >= 3){ S.gems += 40; toast("🥚 Egg basket full — got 40 💎 instead"); return false; } S.eggs.push({ need:20, prog:0 }); toast("🥚 You got an egg! Clean goo to hatch it"); return true; }
 function rollPal(odds, shinyChance){
   const tot = Object.values(odds).reduce((a,b)=>a+b,0); let r = Math.random()*tot, rar = "C";
   for (const k of ["C","R","E","L"]){ if (r < odds[k]){ rar = k; break; } r -= odds[k]; }
-  const p = pick(PALS.filter(x => x.rar === rar));
+  const p = pick(PALS.filter(x => x.rar === rar && x.set !== "event"));
   return grantPal(p.id, Math.random() < shinyChance);
 }
 function grantPal(id, shiny){
@@ -622,9 +652,10 @@ function gen(seed, o){
     x += w; i++;
   }
   plats.push(newPlat(x + 120, 380, 260));
+  if (!o.noTokens){ const n = plats.length; [0.3, 0.6, 0.85].forEach(f => { const p = plats[Math.max(1, Math.floor(n*f))]; items.push({ type:"etoken", x: p.x + p.w/2, y: Math.max(90, p.y - 120), bob: f*9 }); }); }
   if (o.portal){ let pn = 0; for (let a = 2; a + 3 < plats.length - 1; a += 7){ const A = plats[a], B = plats[a + 3], c = ["#c49bff","#ff8fd0","#5cc8ff","#ffd166"][pn++ % 4]; const pa = { type:"portal", x: A.x + A.w/2, y: A.y - 60, bob:0, c }, pb = { type:"portal", x: B.x + B.w/2, y: B.y - 60, bob:0, c }; pa.to = pb; pb.to = pa; items.push(pa, pb); } }
   if (goos.length > 3) goos[Math.floor(rnd()*goos.length)].golden = true;
-  if (weekEvent().id === "golden" && goos.length > 4){ const g2 = goos.filter(g => !g.golden); g2[Math.floor(Math.random()*g2.length)].golden = true; }
+  if ((weekEvent().id === "golden" || evOn(4)) && goos.length > 4){ const g2 = goos.filter(g => !g.golden); g2[Math.floor(Math.random()*g2.length)].golden = true; }
   if (S.quizOn){ const cand = plats.slice(1, -1).filter(p => p.type !== "bounce"); for (let k=0;k<3 && cand.length;k++){ const p = cand.splice(Math.floor(Math.random()*cand.length), 1)[0]; items.push({ type:"quiz", x: p.x + p.w/2, y: p.y - 70, bob: Math.random()*6 }); } }
   worldW = x + 500; makeStars(seed);
 }
@@ -805,14 +836,14 @@ function burst(x, y, c, n, sp){ sp = sp || 260; for (let k=0;k<n;k++) parts.push
 function confetti(){ const cs = ["#ffd166","#5cc8ff","#ff8fd0","#8dff5a","#c49bff"]; for (let k=0;k<90;k++) parts.push({ x: camX + Math.random()*W, y: -10 - Math.random()*100, vx:(Math.random()-.5)*120, vy: Math.random()*120, l: 2 + Math.random(), c: cs[k%cs.length] }); }
 function floatText(x, y, t, c){ floats.push({ x, y, t, c: c || "#ffd166", l: 1 }); }
 function say(t, c){ msg = t; msgT = 1.2; msgC = c || "#8dff5a"; }
-const grav = () => BASE_GRAV * (opts.grav || 1);
+const grav = () => BASE_GRAV * (opts.grav || 1) * (evOn(5) && mode !== "dash" && !(opts.grav) ? 0.85 : 1);
 function waterColor(i, rb){
   if (rb || S.water === "rainbow" || opts.rainbow) return `hsl(${(tAnim*300 + i*40) % 360},90%,70%)`;
   if (S.water === "lava") return `hsl(${10 + (i*7)%30},100%,${55 + (i%3)*8}%)`;
   const it = SHOP.water.find(w => w.id === S.water); return it ? it.c : "#9be0ff";
 }
 function isCustomPlay(){ return mode === "custom" || (mode === "race" && RC && RC.R.id === "custom") || (mode === "dash" && D && D.level.id === "custom"); }
-function addGems(v){ if (pw.star) v *= 2; if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; if (!isCustomPlay()) track("gems", v); return v; }
+function addGems(v){ if (pw.star) v *= 2; if (evOn(2) && running) v = Math.round(v*1.5); if (weekEvent().id === "gems2" && running) v *= 2; if (perk.gems && Math.random()*100 < perk.gems){ v *= 2; floatText(P.x, P.y - 40, "DOUBLE! 💎", "#ff8fd0"); } runGems += v; if (!isCustomPlay()) track("gems", v); return v; }
 
 function blast(){
   if (P.cd > 0 || (P.tank < 1 && !pw.infinite)) return;
@@ -900,7 +931,7 @@ function update(dt){
   if (downBuf > 0 && !P.ground && !P.pound){ P.pound = true; P.vy = 780; P.vx *= 0.3; downBuf = 0; tone(500, 200, 0.15, "square", 0.05); }
   // updraft fans
   for (const f of fans){ if (f.geyser){ if (geyserOn(f) && P.x > f.x - 4 && P.x < f.x + f.w + 4 && P.y > 90){ P.vy -= 2300*dt; if (P.vy < -600) P.vy = -600; P.pound = false; if (Math.random() < 0.4) parts.push({ x: f.x + Math.random()*f.w, y: P.y + 16, vx:(Math.random()-.5)*60, vy:-260, l:0.35, c: pick(["#ff9f43","#ffd166","#ff6b3a"]) }); } continue; } if (P.x > f.x && P.x < f.x + f.w && P.y > 110){ P.vy -= 1150*dt; if (P.vy < -380) P.vy = -380; P.pound = false; if (Math.random() < 0.3) parts.push({ x: f.x + Math.random()*f.w, y: P.y + 20, vx:0, vy:-200, l:0.3, c:"#dff6ff" }); } }
-  if (P.ground){ P.tank = Math.min(tankMax, P.tank + REFILL*dt); }
+  if (P.ground){ P.tank = Math.min(tankMax, P.tank + REFILL*(evOn(3) ? 1.5 : 1)*dt); }
   else P.tank = Math.min(tankMax, P.tank + AIR_REFILL*dt);
   P.x += P.vx*dt; P.y += P.vy*dt;
   if (P.squish > 0) P.squish -= dt*4;
@@ -949,6 +980,7 @@ function update(dt){
       if (it.type === "gem"){ const v = addGems((opts.gemValue || 1) * (it.rare ? 5 : 1)); sfx.gem(); burst(it.x, iy, it.rare ? "#ffd166" : "#7ff3ff", 6, 160); floatText(it.x, iy - 10, "+" + v); if (party === "gemrain" || party === "meteor" || party === "lavafloor") partyScore += it.rare ? 5 : 1; }
       else if (it.type === "treasure" && mode === "custom"){ addGems(25); sfx.legend(); burst(it.x, iy, "#ffd166", 40, 360); say("🗝️ TREASURE!", "#ffd166"); }
       else if (it.type === "treasure"){ runTreasure = true; if (!S.treasures.includes(levelIdx)) S.treasures.push(levelIdx); addGems(25); sfx.legend(); burst(it.x, iy, "#ffd166", 40, 360); say("🗝️ HIDDEN TREASURE FOUND!", "#ffd166"); checkAwards(); }
+      else if (it.type === "etoken"){ if (!isCustomPlay() && mode !== "race"){ evAdd(10); S.stats.etokens = (S.stats.etokens || 0) + 1; } burst(it.x, iy, "#ffd166", 24, 300); sfx.legend(); floatText(it.x, iy - 16, EV().tok + " +10 event pts", "#ffd166"); }
       else if (it.type === "heart"){ if (BT){ BT.hearts = Math.min(BT.maxHearts, BT.hearts + 1); } sfx.bubble(); burst(it.x, iy, "#ff6b8a", 14, 200); floatText(it.x, iy - 10, "+1 ❤️", "#ff6b8a"); }
       else if (it.type === "quiz"){ burst(it.x, iy, "#c49bff", 20, 260); openQuiz(); }
       else if (it.type === "power"){ const pp = POWERS[it.p]; pw[it.p] = pp.t; sfx.legend(); burst(it.x, iy, pp.c, 24, 300); say(pp.e + " " + pp.name + "!", pp.c); }
@@ -979,7 +1011,7 @@ function update(dt){
   if (mode === "race" && RC) updateRace(dt);
   if (mode === "level" || mode === "daily"){
     gemRushT -= dt;
-    if (gemRushT <= 0){ gemRushT = 35 + Math.random()*25; if (Math.random() < 0.6){ say("🌠 Shooting star! Catch the falling gems!", "#ffd166"); tone(1200, 400, 0.6, "sine", 0.05); for (let k=0;k<8;k++) items.push({ type:"gem", x: clamp(P.x - 260 + k*75 + (Math.random()-.5)*30, 30, worldW - 30), y: 40 - k*18, bob: k, fall: 85 + Math.random()*30, rare: k === 4 }); for (let k=0;k<40;k++) parts.push({ x: camX + W - k*24, y: 50 + k*3, vx:-300, vy:40, l:0.6, c: k%2 ? "#fff3b0" : "#ffd166" }); } }
+    if (gemRushT <= 0){ gemRushT = (35 + Math.random()*25) * (evOn(11) ? 0.5 : 1); if (Math.random() < 0.6){ say("🌠 Shooting star! Catch the falling gems!", "#ffd166"); tone(1200, 400, 0.6, "sine", 0.05); for (let k=0;k<8;k++) items.push({ type:"gem", x: clamp(P.x - 260 + k*75 + (Math.random()-.5)*30, 30, worldW - 30), y: 40 - k*18, bob: k, fall: 85 + Math.random()*30, rare: k === 4 }); for (let k=0;k<40;k++) parts.push({ x: camX + W - k*24, y: 50 + k*3, vx:-300, vy:40, l:0.6, c: k%2 ? "#fff3b0" : "#ffd166" }); } }
     for (const it of items) if (it.fall && !it.taken){ it.y += it.fall*dt; if (it.y > SLIME_Y) it.taken = true; }
   }
   if (mode === "battle" && BT) updateBattle(dt);
@@ -1338,7 +1370,7 @@ function hitMonster(m, dmg, dir){
   if (m.hp <= 0){
     m.dead = true; m.deadT = 1; BT.cleaned++; track("monsters", 1);
     S.monsters[m.type] = (S.monsters[m.type] || 0) + 1;
-    const d = MONSTERS[m.type], v = addGems(d.gem * (weekEvent().id === "monster" ? 2 : 1));
+    const d = MONSTERS[m.type], v = addGems(d.gem * (weekEvent().id === "monster" ? 2 : 1) * (evOn(9) ? 2 : 1));
     burst(m.x, m.y, d.c, m.type === "giant" ? 60 : 22, m.type === "giant" ? 420 : 260); burst(m.x, m.y, "#fff3b0", 10, 200);
     floatText(m.x, m.y - m.r - 10, `+${v} 💎`, "#ffd166"); sfx.pop(); buddyCheer();
     if (m.type === "giant"){ shake = 0.5; sfx.legend(); say("THE GOO GOLEM IS CLEAN! ✨", "#ffd166"); }
@@ -1597,7 +1629,7 @@ function startRace(spec, ghost, testing){
   ED.testing = !!testing;
   let finishX;
   if (R.id === "custom"){ opts = { hue: R.hue, grav: R.level.grav }; buildCustom(R.level); finishX = R.level.w - 150; ED.playing = R.level; }
-  else { opts = Object.assign({ move:0.15, bounce:0.18 }, R); gen(R.seed, opts); goos = []; items = items.filter(it => it.type !== "quiz" && it.type !== "treasure"); const last = plats[plats.length - 1]; finishX = last.x + last.w/2; }
+  else { opts = Object.assign({ move:0.15, bounce:0.18, noTokens:true }, R); gen(R.seed, opts); goos = []; items = items.filter(it => it.type !== "quiz" && it.type !== "treasure"); const last = plats[plats.length - 1]; finishX = last.x + last.w/2; }
   const racers = ghost ? [{ n: ghost.n, e:"👻", c:"#c49bff", ghost:true, pts: ghost.pts, gtime: ghost.t, x: plats[0].x + 60, y: 300, done: 0 }]
                        : RACERS.map((r, i) => Object.assign({}, r, { x: plats[0].x + 60 + i*12, y: 250, sp: R.ai[i], wob: Math.random()*6, done: 0, boostT: 0 }));
   RC = { R, finishX, count: 3.4, time: 0, order: [], racers, ghost: ghost || null, rec: [], recT: 0 };
@@ -2266,6 +2298,7 @@ function render(){
     if (it.taken) continue;
     const x = it.x - cx, y = it.y + Math.sin(tAnim*3 + it.bob)*5;
     if (x < -30 || x > W + 30) continue;
+    if (it.type === "etoken"){ ctx.save(); ctx.translate(x, y); ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 16 + Math.sin(tAnim*6)*6; ctx.fillStyle = "rgba(255,209,102,.25)"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, 7); ctx.fill(); ctx.shadowBlur = 0; ctx.font = "22px system-ui,'Apple Color Emoji','Segoe UI Emoji',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(EV().tok, 0, 1); ctx.restore(); ctx.textBaseline = "alphabetic"; continue; }
     if (it.type === "portal"){ ctx.save(); ctx.translate(x, it.y); ctx.shadowColor = it.c; ctx.shadowBlur = 20; for (let k=0;k<3;k++){ ctx.strokeStyle = it.c; ctx.globalAlpha = 0.9 - k*0.25; ctx.lineWidth = 4 - k; ctx.beginPath(); ctx.ellipse(0, 0, 18 - k*5, 30 - k*8, Math.sin(tAnim*2 + k)*0.2, tAnim*(3 + k), tAnim*(3 + k) + 5); ctx.stroke(); } ctx.globalAlpha = 0.35; ctx.fillStyle = it.c; ctx.beginPath(); ctx.ellipse(0, 0, 14, 25, 0, 0, 7); ctx.fill(); ctx.restore(); if (Math.random() < 0.15) parts.push({ x: it.x + (Math.random()-.5)*20, y: it.y + (Math.random()-.5)*40, vx:0, vy:-20, l:0.4, c: it.c }); continue; }
     if (it.type === "boost"){ ctx.save(); ctx.translate(x, it.y); const pulse = 1 + Math.sin(tAnim*8)*0.06; ctx.scale(pulse, pulse); ctx.shadowColor = "#8dff5a"; ctx.shadowBlur = it.cd > 0 ? 4 : 16; ctx.strokeStyle = it.cd > 0 ? "#4a7a3a" : "#8dff5a"; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(0, 0, 14, 26, 0, 0, 7); ctx.stroke(); ctx.fillStyle = "#eaffd0"; ctx.beginPath(); ctx.moveTo(-7*it.dir, -8); ctx.lineTo(7*it.dir, 0); ctx.lineTo(-7*it.dir, 8); ctx.closePath(); ctx.fill(); ctx.restore(); continue; }
     if (it.type === "gem"){
@@ -2603,6 +2636,7 @@ function renderHome(){
       ${isGoogle() ? `<span title="${esc(FB.user.email || "")}" style="font-size:12px;color:#8dff5a;text-align:right">☁️ Saved<br>to Google</span>` : `<button class="small gold" data-act="googleIn" title="Save your progress with your Gmail">🔐 Save with<br>Google</button>`}</div>
     <div class="wallet"><span class="pill">💎 ${S.gems}</span><span class="pill">✨ ${S.shards}</span><span class="pill">🔥 ${S.streak}</span><span class="pill">🐾 ${Object.keys(S.pals).length}/${PALS.length}</span></div>
     ${MOD.news && MOD.news.t ? `<div class="note" style="margin:0 0 10px;background:linear-gradient(90deg,#4a1a2a,#1a2150);border:1px solid #ff6b6b88;border-radius:12px;padding:8px 12px;color:#fff">📢 <b>News from the owner:</b> ${esc(MOD.news.t)}</div>` : ""}
+    <button class="note" data-act="eventPanel" style="position:relative;display:block;width:100%;margin:0 0 10px;background:linear-gradient(90deg,#4a1a4a,#1a2a5a);border:1px solid #c49bff;border-radius:12px;padding:10px 12px;color:#fff;font-weight:700;cursor:pointer">${bdg(evReady())}${EV().icon} <b>${monthName()} Event: ${EV().name}</b> — ${EV().fx} · ${evState().pts} event pts <span style="color:var(--gold)">· Open ›</span></button>
     <div class="note" style="margin:0 0 10px;background:linear-gradient(90deg,#3a2e10,#1a2150);border:1px solid #ffd16666;border-radius:12px;padding:8px 12px">🎪 This week: ${weekEvent().icon} <b>${weekEvent().name}</b> — ${weekEvent().desc}</div>
     <div class="play">
       <button class="tile hot" data-act="daily"><span class="ic">🛰️</span><b>Daily Outpost #${dayNumber()}</b><small>${m.icon} ${m.name}: ${m.desc}<br>${doneToday ? "✅ Shard collected today" : "Win a ✨ shard + 50 💎"}</small></button>
@@ -2693,6 +2727,8 @@ function renderPals(){
     }
     h += `</div>`;
   }
+  const evp = PALS.filter(p => p.set === "event");
+  h += `<div class="sec">🗓️ MONTHLY EVENT PALS · ${evp.filter(p => S.pals[p.id]).length}/12 <span>Only from monthly events!</span></div><div class="items">` + evp.map(p => { const own = S.pals[p.id], ev = MONTH_EVENTS[p.month]; return own ? `<button class="item pal${own.shiny ? " shiny" : ""}${S.buddy === p.id ? " on" : ""}" data-act="buddy" data-arg="${p.id}" style="border-color:#c49bff88"><span class="em">${p.e}</span><b>${p.name}</b><span class="rar" style="color:#c49bff">EVENT · LV ${own.lvl}</span><span class="p">${PERKS[p.perk].icon} ${S.buddy === p.id ? "Buddy!" : "Tap = buddy"}</span></button>` : `<div class="item pal locked"><span class="em" style="filter:brightness(0) opacity(.5)">${p.e}</span><b>???</b><span class="rar" style="color:#c49bff">${monthName(p.month).toUpperCase()}</span></div>`; }).join("") + `</div>`;
   panel("🐾 Space Pals", h, renderPals);
 }
 function renderShop(){
@@ -2847,6 +2883,7 @@ function renderOwner(){
   if (!LB.owner){ goHome(); return; }
   const nowMin = Math.floor(Date.now() / 60000), list = modPlayers();
   let h = `<p class="sub">🛡️ Only <b>@${OWNER_NAME}</b> can see this page. <b>Ban</b> stops a player from playing, chatting and being on the leaderboard (you can unban later). <b>Delete</b> wipes their progress, username and friends — it can't be undone.</p>`;
+  h += `<div class="quest" style="border-color:#c49bff"><span class="ic">${EV().icon}</span><div class="body"><b>This month's event code: <span style="letter-spacing:2px;color:var(--gold)">${EV().code}</span></b><br><small>Works for everyone during ${monthName()} only (150 💎 + 2 ✨ + 50 event pts). Share it in the News when you want!</small></div><button class="small" data-act="ocCopy" data-arg="${EV().code}">📋</button></div>`;
   h += `<div class="sec">📢 NEWS FOR EVERYONE <span>Shows on every player's home screen</span></div><div class="row"><input type="text" id="newsIn" maxlength="120" value="${esc(MOD.news && MOD.news.t || "")}" placeholder="e.g. Double gems this weekend!" aria-label="Announcement" style="flex:1;min-width:200px"><button class="primary" data-act="modNews">Post</button>${MOD.news ? `<button class="small" data-act="modNewsClear">Remove</button>` : ""}</div>`;
   const itemOpts = ["hat","trail","suit","water"].map(cat => SHOP[cat].filter(it => it.id !== "none" && it.price !== 0).map(it => `<option value="${cat}-${it.id}">${it.e || "👕"} ${esc(it.name)} (${cat})</option>`).join("")).join("");
   const sel = "font:inherit;font-size:14px;padding:8px;border-radius:10px;background:#0b1030;color:var(--ink);border:1px solid var(--line)";
@@ -3133,7 +3170,7 @@ const ACT = {
   giftPal: id => { const own = S.pals[id]; if (!own) return; if (own.lvl < 2){ note("You can only gift a pal that's at least Lv 2 (it goes down 1 level)."); return; } own.lvl--; S.stats.gifts++; checkAwards(); save(); const code = giftCode(id); const box = $("giftBox"); if (box){ box.style.display = "block"; box.value = code; box.select(); } try { navigator.clipboard.writeText(code).catch(() => {}); } catch(e){} note(`🎁 Gift code made for ${PAL(id).name}! Send it to a friend — they type it in 🔑 Codes.`); },
   farmPanel: () => { farmPick = -1; renderFarm(); },
   farmPick: i => { farmPick = farmPick === +i ? -1 : +i; renderFarm(); },
-  farmPlant: id => { const F = farmState(), sd = SEED(id); if (farmPick < 0 || F.plots[farmPick]) return; if (S.gems < sd.cost){ note(`Need ${sd.cost - S.gems} more 💎`); sfx.fail(); return; } S.gems -= sd.cost; F.plots[farmPick] = { seed: id, t0: Date.now(), dur: sd.min*60000, w:false }; farmPick = -1; save(); sfx.bubble(); renderFarm(); toast(`${sd.e} Started growing ${sd.name}!`); },
+  farmPlant: id => { const F = farmState(), sd = SEED(id); if (farmPick < 0 || F.plots[farmPick]) return; if (S.gems < sd.cost){ note(`Need ${sd.cost - S.gems} more 💎`); sfx.fail(); return; } S.gems -= sd.cost; F.plots[farmPick] = { seed: id, t0: Date.now(), dur: sd.min*60000*(evOn(10) ? 0.5 : 1), w:false }; farmPick = -1; save(); sfx.bubble(); renderFarm(); toast(`${sd.e} Started growing ${sd.name}!`); },
   farmWater: i => { const pl = farmState().plots[+i]; if (!pl || pl.w || farmReady(pl)) return; pl.w = true; pl.t0 -= (pl.t0 + pl.dur - Date.now()) * 0.25; save(); sfx.bubble(); toast("⚡ Zap! It grows 25% faster now"); renderFarm(); },
   farmHarvest: i => { const F = farmState(), pl = F.plots[+i]; if (!pl || !farmReady(pl)) return; const sd = SEED(pl.seed); F.plots[+i] = null; track("harvests", 1); addXP(10 + sd.cost/5); addSeasonXP(20 + sd.cost/3); save(); grantReward({ g: sd.g, s: sd.s, egg: sd.egg }, `⛏️ Collected ${sd.name}!`); syncLB && syncLB(); },
   farmBuy: () => { const F = farmState(), c = 150 * (F.plots.length - 5); if (F.plots.length >= FARM_MAX) return; if (S.gems < c){ note(`Need ${c - S.gems} more 💎`); sfx.fail(); return; } S.gems -= c; F.plots.push(null); save(); sfx.coin(); renderFarm(); },
@@ -3168,6 +3205,12 @@ const ACT = {
       if (!S.owned.includes("hat-mask")) S.owned.push("hat-mask");
       save(); sfx.legend(); queueReveal({ title:"🌟 SAMARTH SECRET UNLOCKED!", cards:[{ e:"👑", name:"Samarth's Secret Prize", c:"#ffd166", sub:"777 gems + 7 star shards + Mystery Mask" }] });
       toast("Secret code SAMARTH accepted!"); return;
+    }
+    const evc = MONTH_EVENTS.findIndex(e => e.code === v);
+    if (evc >= 0){
+      if (evc !== evIdx()){ note(`That's the ${monthName(evc)} event code — it only works in ${monthName(evc)}! 📅`); sfx.fail(); return; }
+      const key = "ev-" + seasonKey(); if (S.codes.includes(key)){ note("You already used this month's event code! ✅"); return; }
+      S.codes.push(key); evAdd(50); save(); sfx.legend(); grantReward({ g:150, s:2 }, `${EV().icon} ${EV().name} event code!`); toast("+50 event points!"); return;
     }
     if (h !== 944884742){ redeemOwnerCode(v); return; }
     if (S.codes.includes("secret1")){ note("You already used this code! ✅"); return; }
@@ -3446,7 +3489,28 @@ const B3_ACT = {
   bankOut: a => { const b = S.bank, n = Math.min(a === "all" ? b.amt : +a, b.amt); if (n <= 0) return; b.amt -= n; S.gems += n; if (!b.amt) b.day = ""; save(); sfx.coin(); renderBank(); note(`Took out ${n} 💎`); },
   bankCollect: () => { if (!bankReady()) return; const n = Math.min(bankInterest(), BANK_MAX - S.bank.amt); S.bank.day = today(); if (n > 0){ S.bank.amt += n; S.stats.interest = (S.stats.interest || 0) + n; } checkAwards(); save(); sfx.win(); renderBank(); note(n > 0 ? `🎉 Your bank grew by ${n} 💎!` : "Your bank is full — take some out to keep growing!"); },
 };
-Object.assign(ACT, MOD_ACT, MORE_ACT, COMM_ACT, B3_ACT);
+function monthName(m){ return ["January","February","March","April","May","June","July","August","September","October","November","December"][m === undefined ? evIdx() : m]; }
+function evReady(){ const st = evState(); return EV_MILES.filter(m => st.pts >= m.p && !st.claimed.includes(m.p)).length; }
+function evEnds(){ return seasonEnds(); }
+function renderEvent(){
+  const e = EV(), st = evState(), pal = PALS.find(p => p.id === e.pal[0]), top = EV_MILES[EV_MILES.length - 1].p, nextM = (evIdx() + 1) % 12;
+  let h = `<div style="font-size:64px;line-height:1.1">${e.icon}</div><h2 style="margin:4px 0">${e.name}</h2><p class="sub">${monthName()} event · ends in ${evEnds()}</p>
+    <div class="quest" style="border-color:#5cc8ff"><span class="ic">🎮</span><div class="body"><b>This month in every game</b><br><small>${e.fx}</small></div></div>
+    <div class="quest" style="border-color:#8dff5a"><span class="ic">${SETS.find(x => x.id === e.set).icon}</span><div class="body"><b>Pal boost: ${SETS.find(x => x.id === e.set).name}</b><br><small>Buddies from this set (and ${pal.e} ${pal.name}) get <b>+50% power</b> this month</small></div></div>
+    <div class="quest" style="border-color:#c49bff"><span class="ic" style="font-size:34px">${pal.e}</span><div class="body"><b>Event pal: ${pal.name}</b> <small style="color:#c49bff">· EPIC · ${PERKS[pal.perk].icon}</small><br><small>${S.pals[pal.id] ? "✅ You have " + pal.name + "!" : "Only this month! Reach 800 event points to win it."}</small></div></div>
+    <div class="quest"><span class="ic">${e.tok}</span><div class="body"><b>Find ${e.tok} event tokens</b><br><small>3 hidden in every level & Daily Outpost (+10 pts each). You also earn points by cleaning goo, clearing levels, battles, party games, races, quizzes and expeditions. 🔑 This month's event code gives +50 pts — ask the game owner!</small></div></div>
+    <div class="sec">🎯 EVENT REWARDS <span>${st.pts} pts</span></div><div class="bar" style="height:14px;margin-bottom:10px"><i style="width:${Math.min(100, 100*st.pts/top)}%;background:linear-gradient(90deg,#c49bff,#ff8fd0)"></i></div>`;
+  for (const m of EV_MILES){ const got = st.claimed.includes(m.p), ready = st.pts >= m.p && !got; h += `<div class="tier${got ? " got" : ""}${ready ? " ready" : ""}"><span class="lv">${m.p}</span><span class="rw">${m.pal ? pal.e + " <b>" + pal.name + "</b> (event pal)" : m.t}</span>${got ? "✅" : ready ? `<button class="small gold" data-act="evClaim" data-arg="${m.p}">Claim</button>` : "🔒"}</div>`; }
+  h += `<p class="sub" style="margin-top:10px">Next month: ${MONTH_EVENTS[nextM].icon} ${MONTH_EVENTS[nextM].name} — ${MONTH_EVENTS[nextM].fx}</p>`;
+  panel(`${e.icon} ${monthName()} Event`, h, renderEvent);
+}
+const EV_ACT = {
+  eventPanel: () => renderEvent(),
+  evClaim: p => { p = +p; const st = evState(), m = EV_MILES.find(x => x.p === p); if (!m || st.pts < p || st.claimed.includes(p)) return; st.claimed.push(p); save();
+    if (m.pal){ const pal = PALS.find(x => x.id === EV().pal[0]), r = grantPal(pal.id, Math.random() < 0.1); S.stats.evPals = (S.stats.evPals || 0) + 1; checkAwards(); save(); queueReveal({ title:`${EV().icon} Event pal!`, cards:[palCard(r)], shake:true, box: EV().icon }); }
+    else grantReward(m.r, `${EV().icon} ${EV().name} reward!`); },
+};
+Object.assign(ACT, MOD_ACT, MORE_ACT, COMM_ACT, B3_ACT, EV_ACT);
 
 // ================= flow =================
 function applyPerks(){
@@ -3487,7 +3551,7 @@ function startLevel(i, fromRush){
   if (!fromRush) RUSH = null;
   party = null; balloons = []; BT = null;
   startMusic(i); sfx.stage(i);
-  mode = LEVELS[i].boss ? "boss" : "level"; levelIdx = i; mod = null; opts = LEVELS[i];
+  mode = LEVELS[i].boss ? "boss" : "level"; levelIdx = i; mod = null; opts = LEVELS[i].boss ? LEVELS[i] : evOpts(LEVELS[i]);
   if (opts.boss){ genBoss(false, opts.queen, opts.magma); if (opts.magma){ hue = 12; fans = [{ x:860, w:50, geyser:true, ph:0, period:2.6 }, { x:360, w:50, geyser:true, ph:1.3, period:2.6 }]; } if (opts.queen){ hue = 200; plats.forEach((p, k) => { if (k === 3 || k === 5) p.type = "ice"; }); } } else gen(hashStr("level-" + i), opts);
   if (!opts.boss && !S.treasures.includes(i)) placeTreasure(i);
   begin(opts.boss ? 180 : 150);
@@ -3497,7 +3561,7 @@ function startDaily(){
   party = null; balloons = []; BT = null;
   startMusic(dayNumber() + 2);
   mode = "daily"; mod = todayMod();
-  opts = Object.assign({ hue: hashStr(today()) % 360, len: 2600, d: 0.25 }, mod);
+  opts = evOpts(Object.assign({ hue: hashStr(today()) % 360, len: 2600, d: 0.25 }, mod));
   gen(hashStr("splash-" + today()), opts); begin(150);
   say(mod.icon + " " + mod.name + "!", "#ffd166");
 }
